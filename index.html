@@ -177,6 +177,8 @@ gap: 12px;
 .ch-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .ch-name-text { font-size: 14px; font-weight: 600; color: #0a0f1e; }
 
+.mrow-mobile { display: none; }
+
 .mrow-input {
 width: 100%;
 padding: 8px 10px;
@@ -366,17 +368,62 @@ margin-bottom: 28px;
 .icard.ic-blue h3 { color: #002D72; }
 .icard.ic-blue .ic-body { color: #1a3a6b; }
 
+/* Channel breakdown cards (mobile) */
+.breakdown-mobile { display: none; }
+.breakdown-desktop { display: block; }
+
+.breakdown-card {
+background: #fff;
+border: 1px solid #e2e5ed;
+border-radius: 12px;
+padding: 14px 16px;
+margin-bottom: 8px;
+}
+.breakdown-card-top {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 2px;
+}
+.breakdown-stats {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 8px;
+}
+.breakdown-stat {}
+.breakdown-val {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 13px;
+font-weight: 700;
+color: #002D72;
+margin-top: 2px;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
-.wrap { padding: 24px 14px 60px; }
-.hdr h1 { font-size: 24px; }
+.wrap { padding: 20px 14px 60px; }
 .controls-row { grid-template-columns: 1fr; }
 .algo-group { grid-template-columns: 1fr 1fr; }
 .stats { grid-template-columns: 1fr; }
-.mrow-top, .mrow-header { grid-template-columns: 1fr 80px 80px 80px 36px; }
 .hero-num { font-size: 38px; }
 .hero-top { flex-direction: column; align-items: flex-start; }
 .hero-right { text-align: left; }
+
+/* Channel rows on mobile */
+.mrow-header { display: none; }
+.mrow-desktop { display: none !important; }
+.mrow-mobile { display: block; }
+.mrow-input-lbl {
+font-size: 9px;
+font-weight: 700;
+letter-spacing: 1px;
+text-transform: uppercase;
+color: #b5b9c8;
+margin-bottom: 3px;
+}
+.mrow-input { font-size: 13px; padding: 6px 8px; }
+.breakdown-desktop { display: none; }
+.breakdown-mobile { display: block; }
 }
 </style>
 
@@ -570,16 +617,36 @@ function renderChannelList() {
     var ch=channels[i], color=PALETTE[i%PALETTE.length];
     var barPct = totalBudget>0 ? Math.round((allocs[i].budget/totalBudget)*100) : 0;
     h+='<div class="mrow" id="ch-row-'+i+'">'+
-       '<div class="mrow-top">'+
-       '<div class="ch-name"><div class="ch-dot" style="background:'+color+'"></div>'+
-       '<span class="ch-name-text">'+esc(ch.name)+'</span></div>'+
-       '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.roas+'" '+
-         'oninput="channels['+i+'].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
-       '<input class="mrow-input" type="number" step="1000" min="0" value="'+ch.spend+'" '+
-         'oninput="channels['+i+'].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
-       '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.cvr+'" '+
-         'oninput="channels['+i+'].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
-       '<button class="remove-btn" onclick="doRemove('+i+')" title="Remove">×</button>'+
+       // Desktop: single grid row
+       '<div class="mrow-top mrow-desktop">'+
+         '<div class="ch-name"><div class="ch-dot" style="background:'+color+'"></div>'+
+         '<span class="ch-name-text">'+esc(ch.name)+'</span></div>'+
+         '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.roas+'" '+
+           'oninput="channels['+i+'].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+         '<input class="mrow-input" type="number" step="1000" min="0" value="'+ch.spend+'" '+
+           'oninput="channels['+i+'].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+         '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.cvr+'" '+
+           'oninput="channels['+i+'].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+         '<button class="remove-btn" onclick="doRemove('+i+')" title="Remove">×</button>'+
+       '</div>'+
+       // Mobile: stacked layout with labels
+       '<div class="mrow-mobile">'+
+         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+           '<div class="ch-name"><div class="ch-dot" style="background:'+color+'"></div>'+
+           '<span class="ch-name-text">'+esc(ch.name)+'</span></div>'+
+           '<button class="remove-btn" onclick="doRemove('+i+')" title="Remove">×</button>'+
+         '</div>'+
+         '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'+
+           '<div><div class="mrow-input-lbl">ROAS</div>'+
+           '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.roas+'" '+
+             'oninput="channels['+i+'].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
+           '<div><div class="mrow-input-lbl">Spend ($)</div>'+
+           '<input class="mrow-input" type="number" step="1000" min="0" value="'+ch.spend+'" '+
+             'oninput="channels['+i+'].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
+           '<div><div class="mrow-input-lbl">CVR (%)</div>'+
+           '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.cvr+'" '+
+             'oninput="channels['+i+'].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
+         '</div>'+
        '</div>'+
        '<div class="minibar" id="minibar-'+i+'">'+
          '<div class="minibar-track"><div class="minibar-fill" id="minibar-fill-'+i+'" style="width:'+barPct+'%;background:'+color+'"></div></div>'+
@@ -635,7 +702,9 @@ function runAndRenderResults() {
 
   // Table
   h+='<div class="sec"><div class="sec-title" style="margin-bottom:12px">Channel Breakdown</div>';
-  h+='<div class="tbl-wrap"><table class="tbl"><thead><tr>';
+
+  // Desktop table
+  h+='<div class="tbl-wrap breakdown-desktop"><table class="tbl"><thead><tr>';
   h+='<th>Channel</th><th>Allocation</th><th>Budget</th><th>Est. Return</th><th>ROAS</th>';
   h+='</tr></thead><tbody>';
   for(var ri=0;ri<channels.length;ri++){
@@ -652,7 +721,33 @@ function runAndRenderResults() {
     h+='<td>'+rch.roas.toFixed(1)+'x</td>';
     h+='</tr>';
   }
-  h+='</tbody></table></div></div>';
+  h+='</tbody></table></div>';
+
+  // Mobile cards
+  h+='<div class="breakdown-mobile">';
+  for(var mi=0;mi<channels.length;mi++){
+    var mch=channels[mi], ma=allocs[mi];
+    var mPct=(ma.pct*100).toFixed(1);
+    var mRet=ma.budget*mch.roas;
+    var mColor=PALETTE[mi%PALETTE.length];
+    var mPillCls=ma.pct>0.25?'pill-top':ma.pct>0.15?'pill-mid':'pill-low';
+    h+='<div class="breakdown-card">'+
+       '<div class="breakdown-card-top">'+
+         '<div class="ch-name"><div class="ch-dot" style="background:'+mColor+'"></div>'+
+         '<span class="ch-name-text">'+esc(mch.name)+'</span></div>'+
+         '<span class="pill '+mPillCls+'">'+mPct+'%</span>'+
+       '</div>'+
+       '<div class="minibar" style="margin:8px 0 10px">'+
+         '<div class="minibar-track"><div class="minibar-fill" style="width:'+mPct+'%;background:'+mColor+'"></div></div>'+
+       '</div>'+
+       '<div class="breakdown-stats">'+
+         '<div class="breakdown-stat"><div class="mrow-input-lbl">Budget</div><div class="breakdown-val">'+fmt(ma.budget)+'</div></div>'+
+         '<div class="breakdown-stat"><div class="mrow-input-lbl">Est. Return</div><div class="breakdown-val">'+fmt(mRet)+'</div></div>'+
+         '<div class="breakdown-stat"><div class="mrow-input-lbl">ROAS</div><div class="breakdown-val">'+mch.roas.toFixed(1)+'x</div></div>'+
+       '</div>'+
+       '</div>';
+  }
+  h+='</div></div>';
 
   // Insight
   var goalLine = goalPct>=100
