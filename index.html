@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget Allocator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+font-family: ‘DM Sans’, Helvetica, Arial, sans-serif;
+background: #f4f5f9;
+color: #0a0f1e;
+line-height: 1.6;
+-webkit-font-smoothing: antialiased;
+min-height: 100vh;
+}
+
+.wrap {
+max-width: 860px;
+margin: 0 auto;
+padding: 40px 24px 80px;
+}
+
+/* Header */
+.hdr {
+text-align: center;
+margin-bottom: 40px;
+padding-bottom: 32px;
+border-bottom: 2px solid #e2e5ed;
+}
+.hdr-tag {
+display: inline-block;
+font-size: 11px;
+font-weight: 700;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: #002D72;
+margin-bottom: 14px;
+background: #e8eefb;
+padding: 4px 14px;
+border-radius: 20px;
+}
+.hdr h1 {
+font-size: 32px;
+font-weight: 800;
+letter-spacing: -0.5px;
+color: #0a0f1e;
+line-height: 1.2;
+margin-bottom: 10px;
+}
+.hdr p {
+font-size: 14px;
+color: #7c8399;
+max-width: 540px;
+margin: 0 auto;
+line-height: 1.7;
+}
+
+/* Tabs */
+.tabs {
+display: inline-flex;
+gap: 2px;
+margin-bottom: 28px;
+background: #eef0f5;
+padding: 4px;
+border-radius: 10px;
+}
+.tab-btn {
+padding: 9px 24px;
+border-radius: 8px;
+font-family: inherit;
+font-size: 13px;
+font-weight: 600;
+cursor: pointer;
+border: none;
+background: transparent;
+color: #7c8399;
+transition: all 0.15s;
+}
+.tab-btn.active {
+background: #fff;
+color: #0a0f1e;
+box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* Controls row */
+.controls-row {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 12px;
+margin-bottom: 28px;
+}
+.ctrl-card {
+padding: 18px 20px;
+background: #fff;
+border: 1px solid #e2e5ed;
+border-radius: 12px;
+border-top: 3px solid #002D72;
+}
+.ctrl-card.gold-top { border-top-color: #FFBF3F; }
+.ctrl-lbl {
+font-size: 10px;
+font-weight: 700;
+letter-spacing: 1.5px;
+text-transform: uppercase;
+color: #b5b9c8;
+margin-bottom: 8px;
+}
+.ctrl-card input, .ctrl-card select {
+width: 100%;
+border: none;
+outline: none;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 20px;
+font-weight: 700;
+color: #002D72;
+background: transparent;
+padding: 0;
+-moz-appearance: textfield;
+}
+.ctrl-card input::-webkit-inner-spin-button { opacity: 0.3; }
+.ctrl-card select {
+font-family: ‘DM Sans’, sans-serif;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+}
+
+/* Section */
+.sec { margin-bottom: 30px; }
+.sec-title {
+font-size: 18px;
+font-weight: 800;
+color: #0a0f1e;
+margin-bottom: 4px;
+}
+.sec-sub {
+font-size: 12px;
+color: #b5b9c8;
+margin-bottom: 16px;
+}
+
+/* Metric / channel rows */
+.mrow-header {
+display: grid;
+grid-template-columns: 160px 1fr 1fr 1fr 36px;
+gap: 12px;
+padding: 0 20px 8px;
+}
+.mrow-hdr-lbl {
+font-size: 10px;
+font-weight: 700;
+letter-spacing: 1px;
+text-transform: uppercase;
+color: #b5b9c8;
+}
+.mrow {
+padding: 14px 20px;
+background: #fff;
+border: 1px solid #e2e5ed;
+border-radius: 12px;
+margin-bottom: 8px;
+transition: border-color 0.15s;
+}
+.mrow:hover { border-color: #b5b9c8; }
+.mrow-top {
+display: grid;
+grid-template-columns: 160px 1fr 1fr 1fr 36px;
+align-items: center;
+gap: 12px;
+}
+.ch-name { display: flex; align-items: center; gap: 10px; }
+.ch-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ch-name-text { font-size: 14px; font-weight: 600; color: #0a0f1e; }
+
+.mrow-input {
+width: 100%;
+padding: 8px 10px;
+border: 2px solid #e2e5ed;
+border-radius: 8px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 14px;
+font-weight: 600;
+text-align: right;
+color: #002D72;
+background: #fff;
+outline: none;
+-moz-appearance: textfield;
+transition: border-color 0.15s;
+}
+.mrow-input:focus { border-color: #002D72; }
+.mrow-input::-webkit-inner-spin-button { opacity: 0.3; }
+
+.remove-btn {
+background: none;
+border: none;
+color: #d1d5e0;
+cursor: pointer;
+font-size: 18px;
+width: 28px; height: 28px;
+display: flex; align-items: center; justify-content: center;
+border-radius: 6px;
+transition: all 0.15s;
+}
+.remove-btn:hover { background: #fde8e8; color: #b91c3a; }
+
+.minibar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.minibar-track { flex: 1; height: 4px; border-radius: 2px; background: #eef0f5; }
+.minibar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+.minibar-num {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 11px; font-weight: 700;
+min-width: 28px; text-align: right;
+}
+
+/* Buttons */
+.btn {
+padding: 11px 22px;
+border-radius: 10px;
+font-family: inherit;
+font-size: 13px;
+font-weight: 700;
+cursor: pointer;
+border: none;
+transition: all 0.15s;
+}
+.btn-blue { background: #002D72; color: #fff; }
+.btn-blue:hover { background: #1a4a9a; }
+.btn-ghost { background: transparent; color: #7c8399; border: 2px solid #e2e5ed; }
+.btn-ghost:hover { border-color: #b5b9c8; color: #0a0f1e; }
+
+/* Algorithm picker */
+.algo-group {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 8px;
+margin-bottom: 20px;
+}
+.algo-opt {
+padding: 12px 10px;
+background: #fff;
+border: 2px solid #e2e5ed;
+border-radius: 10px;
+text-align: center;
+cursor: pointer;
+transition: all 0.15s;
+font-family: inherit;
+}
+.algo-opt:hover { border-color: #002D72; }
+.algo-opt.active { background: #002D72; border-color: #002D72; }
+.algo-opt-name { font-size: 12px; font-weight: 700; color: #0a0f1e; display: block; margin-bottom: 2px; }
+.algo-opt.active .algo-opt-name { color: #fff; }
+.algo-opt-desc { font-size: 10px; color: #b5b9c8; display: block; line-height: 1.3; }
+.algo-opt.active .algo-opt-desc { color: rgba(255,255,255,0.6); }
+
+/* Run button row */
+.run-row {
+display: flex;
+align-items: center;
+gap: 12px;
+margin-bottom: 28px;
+}
+
+/* Hero */
+.hero {
+padding: 28px 30px;
+border-radius: 16px;
+margin-bottom: 28px;
+border: 2px solid;
+position: relative;
+overflow: hidden;
+}
+.hero-top {
+display: flex;
+justify-content: space-between;
+align-items: flex-end;
+flex-wrap: wrap;
+gap: 16px;
+}
+.hero-num {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 52px;
+font-weight: 800;
+line-height: 1;
+letter-spacing: -2px;
+}
+.hero-max { font-size: 16px; font-weight: 500; color: #7c8399; margin-left: 4px; }
+.hero-right { text-align: right; }
+.hero-level { font-size: 20px; font-weight: 800; }
+.hero-desc { font-size: 12px; color: #7c8399; max-width: 300px; margin-top: 4px; line-height: 1.5; }
+.bar-track { margin-top: 22px; height: 8px; border-radius: 4px; background: rgba(0,0,0,0.07); }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.bar-labels {
+display: flex; justify-content: space-between; margin-top: 7px;
+font-size: 10px; font-weight: 600; color: #b5b9c8;
+text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Stats */
+.stats {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 12px;
+margin-bottom: 28px;
+}
+.stat-card {
+padding: 20px;
+background: #fff;
+border-radius: 12px;
+border: 1px solid #e2e5ed;
+}
+.stat-lbl {
+font-size: 10px; font-weight: 700;
+letter-spacing: 1.5px; text-transform: uppercase; color: #b5b9c8;
+}
+.stat-num {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 28px; font-weight: 800; color: #0a0f1e; margin-top: 6px;
+}
+.stat-num span { font-size: 14px; color: #b5b9c8; font-weight: 500; }
+.stat-detail { font-size: 12px; color: #7c8399; margin-top: 4px; }
+
+/* Table */
+.tbl-wrap {
+border-radius: 12px; overflow: hidden;
+border: 1px solid #e2e5ed; margin-bottom: 28px;
+}
+table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th {
+text-align: left; padding: 12px 16px; font-weight: 700;
+color: #7c8399; background: #f6f7fa;
+font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.tbl th:not(:first-child) { text-align: right; }
+.tbl td { padding: 12px 16px; border-top: 1px solid #eef0f5; font-weight: 500; vertical-align: middle; }
+.tbl td:not(:first-child) { font-family: ‘JetBrains Mono’, monospace; text-align: right; }
+.tbl tbody tr:hover { background: #f6f7fa; }
+
+.pill { display: inline-block; padding: 3px 11px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.pill-top { background: #e8eefb; color: #002D72; }
+.pill-mid { background: #f5e6a3; color: #8a5a00; }
+.pill-low { background: #a8dfc0; color: #0d6938; }
+
+/* Insight */
+.insight-box {
+padding: 16px 20px; border-radius: 12px;
+background: #fefaed; border: 1px solid #f5e6a3;
+border-left: 4px solid #FFBF3F;
+font-size: 13px; color: #4a3c00; line-height: 1.7;
+margin-bottom: 28px;
+}
+.insight-box strong { color: #002D72; font-weight: 700; }
+
+/* Info cards */
+.icard { padding: 22px; border-radius: 12px; margin-bottom: 14px; border: 1px solid; }
+.icard h3 { font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.icard .ic-body { font-size: 13px; line-height: 1.8; }
+.icard.ic-white { background: #fff; border-color: #e2e5ed; }
+.icard.ic-white h3 { color: #0a0f1e; }
+.icard.ic-white .ic-body { color: #4a5269; }
+.icard.ic-blue { background: #e8eefb; border-color: #b3c7ec; }
+.icard.ic-blue h3 { color: #002D72; }
+.icard.ic-blue .ic-body { color: #1a3a6b; }
+
+/* Responsive */
+@media (max-width: 640px) {
+.wrap { padding: 24px 14px 60px; }
+.hdr h1 { font-size: 24px; }
+.controls-row { grid-template-columns: 1fr; }
+.algo-group { grid-template-columns: 1fr 1fr; }
+.stats { grid-template-columns: 1fr; }
+.mrow-top, .mrow-header { grid-template-columns: 1fr 80px 80px 80px 36px; }
+.hero-num { font-size: 38px; }
+.hero-top { flex-direction: column; align-items: flex-start; }
+.hero-right { text-align: left; }
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Instructions -->
+
+  <div style="background:#fff;border:1px solid #e2e5ed;border-left:4px solid #002D72;border-radius:12px;padding:18px 22px;margin-bottom:32px;font-size:13px;color:#4a5269;line-height:1.8">
+    <span style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b5b9c8;display:block;margin-bottom:10px">How to use</span>
+    <b style="color:#002D72">1. Configure</b> — Set your total budget and revenue goal. Enter ROAS, current spend, and conversion rate for each channel.<br>
+    <b style="color:#002D72">2. Results</b> — Switch to the Results tab, pick an algorithm, and the allocation updates instantly. Switch algorithms to compare approaches.<br>
+    <b style="color:#002D72">3. Interpret</b> — The goal attainment score shows how much of your revenue target the allocation is projected to hit. The channel breakdown shows exact budget splits.
+  </div>
+
+  <!-- Static tabs — never re-rendered -->
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-input"  onclick="doTab('input')">Configure</button>
+    <button class="tab-btn"        id="tab-results" onclick="doTab('results')">Results Breakdown</button>
+  </div>
+
+  <!-- Configure panel -->
+
+  <div id="panel-input">
+
+```
+<!-- Controls: static inputs wired directly, no re-render -->
+<div class="controls-row">
+  <div class="ctrl-card">
+    <div class="ctrl-lbl">Total Budget</div>
+    <input id="inp-budget" type="number" value="100000" step="1000" min="0" oninput="totalBudget=parseFloat(this.value)||0;refreshMinibars();refreshResults()">
+  </div>
+  <div class="ctrl-card gold-top">
+    <div class="ctrl-lbl">Revenue Goal</div>
+    <input id="inp-goal" type="number" value="500000" step="10000" min="0" oninput="revenueGoal=parseFloat(this.value)||0;refreshResults()">
+  </div>
+</div>
+
+<!-- Channel rows: only the channel list is re-rendered -->
+<div class="sec">
+  <div class="sec-title">Channels</div>
+  <div class="sec-sub">Enter performance data for each channel</div>
+
+  <div class="mrow-header">
+    <div class="mrow-hdr-lbl">Channel</div>
+    <div class="mrow-hdr-lbl" style="text-align:right">ROAS</div>
+    <div class="mrow-hdr-lbl" style="text-align:right">Spend ($)</div>
+    <div class="mrow-hdr-lbl" style="text-align:right">CVR (%)</div>
+    <div></div>
+  </div>
+
+  <div id="channel-list"></div>
+
+  <div style="margin-top:12px">
+    <button class="btn btn-ghost" onclick="doAdd()">+ Add Channel</button>
+  </div>
+</div>
+
+<div class="icard ic-blue" style="margin-top:8px"><h3>Data Sources</h3><div class="ic-body">
+  Enter historical ROAS from your ad platform dashboards (Google Ads, Meta Business Manager).
+  Conversion rates from your analytics platform. Current spend from your media plan or billing statements.
+  Update quarterly as campaign performance evolves.
+</div></div>
+```
+
+  </div>
+
+  <!-- Results panel (hidden initially) -->
+
+  <div id="panel-results" style="display:none">
+
+```
+<!-- Algorithm picker lives here -->
+<div class="sec">
+  <div class="sec-title">Algorithm</div>
+  <div class="sec-sub">Select the model to drive recommendations</div>
+  <div class="algo-group" id="algo-group"></div>
+</div>
+```
+
+<!-- All results injected here -->
+
+```
+<div id="results-output"></div>
+```
+
+  </div>
+
+</div>
+
+<script>
+var PALETTE = ['#002D72','#1a6bb5','#4a9fd4','#7ab8e8','#003f99','#2d5fa8','#5b9fd6','#a0cce8'];
+
+var channels = [
+  { name:'Paid Search',   roas:4.2, spend:25000, cvr:3.5 },
+  { name:'Paid Social',   roas:2.8, spend:20000, cvr:1.8 },
+  { name:'Programmatic',  roas:1.9, spend:15000, cvr:0.9 },
+  { name:'Email',         roas:6.1, spend:8000,  cvr:5.2 },
+  { name:'SEO / Organic', roas:5.3, spend:10000, cvr:4.1 },
+];
+
+var totalBudget = 100000;
+var revenueGoal = 500000;
+var currentAlgo = 'roi';
+var currentTab  = 'input';
+
+var algoMeta = {
+  roi:      { name:'ROI-Weighted',        desc:"Allocates proportionally to each channel's ROAS." },
+  dr:       { name:'Diminishing Returns', desc:'Applies a saturation curve to prevent over-concentration.' },
+  goal:     { name:'Goal-Based',          desc:'Reverse-engineers spend from your revenue target.' },
+  combined: { name:'Combined',            desc:'Equal blend of all three algorithms.' }
+};
+
+// ── Algorithms ──
+function allocROI(total) {
+  var sum = channels.reduce(function(s,c){return s+c.roas;},0);
+  return channels.map(function(c){var p=c.roas/sum;return{pct:p,budget:p*total};});
+}
+function allocDR(total) {
+  var sat=0.6;
+  var ts=channels.reduce(function(s,c){return s+c.spend;},0)||1;
+  var ws=channels.map(function(c){return Math.max(0.01,c.roas*(1-sat*(c.spend/ts)));});
+  var sw=ws.reduce(function(a,b){return a+b;},0);
+  return channels.map(function(c,i){var p=ws[i]/sw;return{pct:p,budget:p*total};});
+}
+function allocGoal(total) {
+  var sc=channels.map(function(c){return c.roas*Math.sqrt(c.cvr);});
+  var ss=sc.reduce(function(a,b){return a+b;},0);
+  return channels.map(function(c,i){var p=sc[i]/ss;return{pct:p,budget:p*total};});
+}
+function runAlloc() {
+  if      (currentAlgo==='roi')  return allocROI(totalBudget);
+  else if (currentAlgo==='dr')   return allocDR(totalBudget);
+  else if (currentAlgo==='goal') return allocGoal(totalBudget);
+  var r=allocROI(totalBudget),d=allocDR(totalBudget),g=allocGoal(totalBudget);
+  return channels.map(function(c,i){
+    return{pct:(r[i].pct+d[i].pct+g[i].pct)/3,budget:(r[i].budget+d[i].budget+g[i].budget)/3};
+  });
+}
+
+function goalLevel(pct) {
+  if(pct>=100) return{color:'#0d6938',bg:'linear-gradient(135deg,#edf9f2,#f5fcf8)',border:'#a8dfc0',label:'Goal Achieved'};
+  if(pct>=80)  return{color:'#002D72',bg:'linear-gradient(135deg,#eaf0fb,#f4f7fd)',border:'#b3c7ec',label:'On Track'};
+  if(pct>=60)  return{color:'#8a5a00',bg:'linear-gradient(135deg,#fefaed,#fffdf5)',border:'#f5e6a3',label:'Behind Target'};
+  return{color:'#b91c3a',bg:'linear-gradient(135deg,#fdf1f3,#fff8f9)',border:'#f5c6cf',label:'Off Track'};
+}
+
+function fmt(n){return '$'+Math.round(n).toLocaleString();}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── Tab switching ──
+function doTab(t) {
+  currentTab = t;
+  document.getElementById('panel-input').style.display   = t==='input'   ? '' : 'none';
+  document.getElementById('panel-results').style.display = t==='results' ? '' : 'none';
+  document.getElementById('tab-input').classList.toggle('active',   t==='input');
+  document.getElementById('tab-results').classList.toggle('active', t==='results');
+  if (t==='results') {
+    renderAlgoPicker();
+    runAndRenderResults();
+  }
+}
+
+// ── Render algo picker (results tab only) ──
+function renderAlgoPicker() {
+  var keys=['roi','dr','goal','combined'];
+  var h='';
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i], m=algoMeta[k];
+    h+='<div class="algo-opt'+(currentAlgo===k?' active':'')+'" onclick="selectAlgo(\''+k+'\')">'+
+       '<span class="algo-opt-name">'+m.name+'</span>'+
+       '<span class="algo-opt-desc">'+m.desc+'</span>'+
+       '</div>';
+  }
+  document.getElementById('algo-group').innerHTML = h;
+}
+
+function selectAlgo(k) {
+  currentAlgo = k;
+  renderAlgoPicker();
+  runAndRenderResults();
+}
+
+// ── Render channel list (called on add/remove only) ──
+function renderChannelList() {
+  var allocs = runAlloc();
+  var h = '';
+  for(var i=0;i<channels.length;i++){
+    var ch=channels[i], color=PALETTE[i%PALETTE.length];
+    var barPct = totalBudget>0 ? Math.round((allocs[i].budget/totalBudget)*100) : 0;
+    h+='<div class="mrow" id="ch-row-'+i+'">'+
+       '<div class="mrow-top">'+
+       '<div class="ch-name"><div class="ch-dot" style="background:'+color+'"></div>'+
+       '<span class="ch-name-text">'+esc(ch.name)+'</span></div>'+
+       '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.roas+'" '+
+         'oninput="channels['+i+'].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+       '<input class="mrow-input" type="number" step="1000" min="0" value="'+ch.spend+'" '+
+         'oninput="channels['+i+'].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+       '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.cvr+'" '+
+         'oninput="channels['+i+'].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+       '<button class="remove-btn" onclick="doRemove('+i+')" title="Remove">×</button>'+
+       '</div>'+
+       '<div class="minibar" id="minibar-'+i+'">'+
+         '<div class="minibar-track"><div class="minibar-fill" id="minibar-fill-'+i+'" style="width:'+barPct+'%;background:'+color+'"></div></div>'+
+         '<span class="minibar-num" id="minibar-num-'+i+'" style="color:'+color+'">'+barPct+'%</span>'+
+       '</div>'+
+       '</div>';
+  }
+  document.getElementById('channel-list').innerHTML = h;
+}
+
+// ── Update only the minibar fills — no DOM rebuild ──
+function refreshMinibars() {
+  var allocs = runAlloc();
+  for(var i=0;i<channels.length;i++){
+    var barPct = totalBudget>0 ? Math.round((allocs[i].budget/totalBudget)*100) : 0;
+    var fill = document.getElementById('minibar-fill-'+i);
+    var num  = document.getElementById('minibar-num-'+i);
+    if(fill) fill.style.width = barPct+'%';
+    if(num)  num.textContent  = barPct+'%';
+  }
+}
+
+// ── Render full results output ──
+function runAndRenderResults() {
+  var allocs = runAlloc();
+  var projRev=0;
+  for(var i=0;i<channels.length;i++) projRev+=allocs[i].budget*channels[i].roas;
+  var blendedROAS = totalBudget>0 ? projRev/totalBudget : 0;
+  var goalPct     = revenueGoal>0 ? Math.round((projRev/revenueGoal)*100) : 0;
+  var gl = goalLevel(goalPct);
+  var topIdx=0;
+  for(var ti=1;ti<allocs.length;ti++){if(allocs[ti].budget>allocs[topIdx].budget)topIdx=ti;}
+
+  var h='';
+
+  // Hero
+  h+='<div class="hero" style="background:'+gl.bg+';border-color:'+gl.border+'">';
+  h+='<div class="hero-top">';
+  h+='<div><span class="hero-num" style="color:'+gl.color+'">'+goalPct+'%</span></div>';
+  h+='<div class="hero-right"><div class="hero-level" style="color:'+gl.color+'">'+gl.label+'</div>';
+  h+='<div class="hero-desc">Projected revenue covers '+goalPct+'% of the '+fmt(revenueGoal)+' goal.</div></div>';
+  h+='</div>';
+  h+='<div class="bar-track"><div class="bar-fill" style="width:'+Math.min(goalPct,100)+'%;background:'+gl.color+'"></div></div>';
+  h+='<div class="bar-labels"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%+</span></div>';
+  h+='</div>';
+
+  // Stats
+  h+='<div class="stats">';
+  h+='<div class="stat-card"><div class="stat-lbl">Projected Revenue</div><div class="stat-num">'+fmt(projRev)+'</div><div class="stat-detail">Across '+channels.length+' channels</div></div>';
+  h+='<div class="stat-card"><div class="stat-lbl">Blended ROAS</div><div class="stat-num">'+blendedROAS.toFixed(2)+'<span>x</span></div><div class="stat-detail">Return per $ spent</div></div>';
+  h+='<div class="stat-card"><div class="stat-lbl">Total Budget</div><div class="stat-num">'+fmt(totalBudget)+'</div><div class="stat-detail">Across '+channels.length+' channels</div></div>';
+  h+='</div>';
+
+  // Table
+  h+='<div class="sec"><div class="sec-title" style="margin-bottom:12px">Channel Breakdown</div>';
+  h+='<div class="tbl-wrap"><table class="tbl"><thead><tr>';
+  h+='<th>Channel</th><th>Allocation</th><th>Budget</th><th>Est. Return</th><th>ROAS</th>';
+  h+='</tr></thead><tbody>';
+  for(var ri=0;ri<channels.length;ri++){
+    var rch=channels[ri], ra=allocs[ri];
+    var rPct=(ra.pct*100).toFixed(1);
+    var estRet=ra.budget*rch.roas;
+    var rColor=PALETTE[ri%PALETTE.length];
+    var pillCls=ra.pct>0.25?'pill-top':ra.pct>0.15?'pill-mid':'pill-low';
+    h+='<tr>';
+    h+='<td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+rColor+';margin-right:8px;vertical-align:middle"></span>'+esc(rch.name)+'</td>';
+    h+='<td><span class="pill '+pillCls+'">'+rPct+'%</span></td>';
+    h+='<td>'+fmt(ra.budget)+'</td>';
+    h+='<td>'+fmt(estRet)+'</td>';
+    h+='<td>'+rch.roas.toFixed(1)+'x</td>';
+    h+='</tr>';
+  }
+  h+='</tbody></table></div></div>';
+
+  // Insight
+  var goalLine = goalPct>=100
+    ? 'Budget is sufficient to achieve the '+fmt(revenueGoal)+' revenue goal.'
+    : 'Budget falls <strong>'+(100-goalPct)+'%</strong> short — consider increasing total budget or improving ROAS on underperforming channels.';
+  h+='<div class="insight-box"><strong>'+esc(channels[topIdx].name)+'</strong> receives the largest allocation at ';
+  h+='<strong>'+fmt(allocs[topIdx].budget)+'</strong> ('+( allocs[topIdx].pct*100).toFixed(1)+'%). '+goalLine+'</div>';
+
+  // Info cards
+  h+='<div class="icard ic-white"><h3>How Algorithms Compare</h3><div class="ic-body">';
+  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">ROI-Weighted</b> Rewards best performers — use when you have high-confidence ROAS data</div>';
+  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">Diminishing Returns</b> Prevents over-indexing — use for mature campaigns near saturation</div>';
+  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">Goal-Based</b> Works backward from revenue — use when hitting a specific target is required</div>';
+  h+='<div><b style="display:inline-block;min-width:170px;color:#002D72">Combined</b> Balanced blend — good default when uncertain which model to trust</div>';
+  h+='</div></div>';
+
+
+
+  document.getElementById('results-output').innerHTML = h;
+}
+
+// ── refreshResults: only update if results tab is visible ──
+function refreshResults() {
+  if(currentTab==='results') runAndRenderResults();
+}
+
+// ── Add / Remove ──
+function doAdd() {
+  var names=['YouTube','CTV','Direct Mail','Affiliate','Influencer','Podcast','Display','OOH'];
+  var used=channels.map(function(c){return c.name;});
+  var name=names.filter(function(n){return used.indexOf(n)<0;})[0]||'Channel '+(channels.length+1);
+  channels.push({name:name,roas:2.0,spend:10000,cvr:1.5});
+  renderChannelList();
+}
+function doRemove(i) {
+  if(channels.length>2){channels.splice(i,1);renderChannelList();}
+}
+
+// ── Init ──
+renderChannelList();
+renderAlgoPicker();
+</script>
+
+</body>
+</html>
