@@ -7,447 +7,786 @@
 <title>Budget Allocator</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'DM Sans',Helvetica,Arial,sans-serif;background:#f4f5f9;color:#0a0f1e;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh;}
-.wrap{max-width:860px;margin:0 auto;padding:40px 24px 80px;}
-.tabs{display:inline-flex;gap:2px;margin-bottom:28px;background:#eef0f5;padding:4px;border-radius:10px;}
-.tab-btn{padding:9px 24px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:#7c8399;transition:all 0.15s;}
-.tab-btn.active{background:#fff;color:#0a0f1e;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
-.sec{margin-bottom:30px;}
-.sec-title{font-size:18px;font-weight:800;color:#0a0f1e;margin-bottom:4px;}
-.sec-sub{font-size:12px;color:#b5b9c8;margin-bottom:16px;}
-.ind-row{display:flex;flex-wrap:wrap;gap:8px;}
-.ind-chip{padding:8px 16px;border-radius:20px;border:2px solid #dcdfe8;background:#fff;font-family:inherit;font-size:12px;font-weight:700;color:#7c8399;cursor:pointer;transition:all 0.15s;}
-.ind-chip:hover{border-color:#002D72;color:#002D72;}
-.ind-chip.active{background:#002D72;border-color:#002D72;color:#fff;}
-.controls-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px;}
-.ctrl-card{padding:18px 20px;background:#fff;border:1px solid #e2e5ed;border-radius:12px;border-top:3px solid #002D72;}
-.ctrl-card.gold-top{border-top-color:#FFBF3F;}
-.ctrl-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b5b9c8;margin-bottom:8px;}
-.ctrl-card input{width:100%;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:#002D72;background:transparent;padding:0;-moz-appearance:textfield;}
-.ctrl-card input::-webkit-inner-spin-button{opacity:0.3;}
-.ch-picker{display:flex;flex-wrap:wrap;gap:8px;}
-.ch-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:2px solid #dcdfe8;background:#fff;font-family:inherit;font-size:12px;font-weight:700;color:#7c8399;cursor:pointer;transition:all 0.15s;user-select:none;}
-.ch-chip:hover{border-color:#002D72;color:#002D72;}
-.ch-chip.active{background:#002D72;border-color:#002D72;color:#fff;}
-.ch-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#d1d5e0;}
-.ch-chip.active .ch-chip-dot{background:rgba(255,255,255,0.5);}
-.mrow-header{display:grid;grid-template-columns:160px 1fr 1fr 1fr 36px;gap:12px;padding:0 20px 8px;}
-.mrow-hdr-lbl{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b5b9c8;}
-.mrow{padding:14px 20px;background:#fff;border:1px solid #e2e5ed;border-radius:12px;margin-bottom:8px;transition:border-color 0.15s;}
-.mrow:hover{border-color:#b5b9c8;}
-.mrow-desktop{display:grid;grid-template-columns:160px 1fr 1fr 1fr 36px;align-items:center;gap:12px;}
-.mrow-mobile{display:none;}
-.ch-name{display:flex;align-items:center;gap:10px;}
-.ch-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-.ch-name-text{font-size:14px;font-weight:600;color:#0a0f1e;}
-.mrow-input{width:100%;padding:8px 10px;border:2px solid #e2e5ed;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;text-align:right;color:#002D72;background:#fff;outline:none;-moz-appearance:textfield;transition:border-color 0.15s;}
-.mrow-input:focus{border-color:#002D72;}
-.mrow-input::-webkit-inner-spin-button{opacity:0.3;}
-.mrow-input-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b5b9c8;margin-bottom:3px;}
-.remove-btn{background:none;border:none;color:#d1d5e0;cursor:pointer;font-size:18px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all 0.15s;}
-.remove-btn:hover{background:#fde8e8;color:#b91c3a;}
-.minibar{display:flex;align-items:center;gap:8px;margin-top:6px;}
-.minibar-track{flex:1;height:4px;border-radius:2px;background:#eef0f5;}
-.minibar-fill{height:100%;border-radius:2px;transition:width 0.3s ease;}
-.minibar-num{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;min-width:28px;text-align:right;}
-.algo-group{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px;}
-.algo-opt{padding:12px 10px;background:#fff;border:2px solid #e2e5ed;border-radius:10px;text-align:center;cursor:pointer;transition:all 0.15s;font-family:inherit;}
-.algo-opt:hover{border-color:#002D72;}
-.algo-opt.active{background:#002D72;border-color:#002D72;}
-.algo-opt-name{font-size:12px;font-weight:700;color:#0a0f1e;display:block;margin-bottom:2px;}
-.algo-opt.active .algo-opt-name{color:#fff;}
-.algo-opt-desc{font-size:10px;color:#b5b9c8;display:block;line-height:1.3;}
-.algo-opt.active .algo-opt-desc{color:rgba(255,255,255,0.6);}
-.hero{padding:28px 30px;border-radius:16px;margin-bottom:28px;border:2px solid;}
-.hero-top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;}
-.hero-num{font-family:'JetBrains Mono',monospace;font-size:52px;font-weight:800;line-height:1;letter-spacing:-2px;}
-.hero-right{text-align:right;}
-.hero-level{font-size:20px;font-weight:800;}
-.hero-desc{font-size:12px;color:#7c8399;max-width:300px;margin-top:4px;line-height:1.5;}
-.bar-track{margin-top:22px;height:8px;border-radius:4px;background:rgba(0,0,0,0.07);}
-.bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease;}
-.bar-labels{display:flex;justify-content:space-between;margin-top:7px;font-size:10px;font-weight:600;color:#b5b9c8;text-transform:uppercase;letter-spacing:0.5px;}
-.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:28px;}
-.stat-card{padding:20px;background:#fff;border-radius:12px;border:1px solid #e2e5ed;}
-.stat-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b5b9c8;}
-.stat-num{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:#0a0f1e;margin-top:6px;}
-.stat-num span{font-size:14px;color:#b5b9c8;font-weight:500;}
-.stat-detail{font-size:12px;color:#7c8399;margin-top:4px;}
-.tbl-wrap{border-radius:12px;overflow:hidden;border:1px solid #e2e5ed;margin-bottom:28px;}
-table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
-.tbl th{text-align:left;padding:12px 16px;font-weight:700;color:#7c8399;background:#f6f7fa;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;}
-.tbl th:not(:first-child){text-align:right;}
-.tbl td{padding:12px 16px;border-top:1px solid #eef0f5;font-weight:500;vertical-align:middle;}
-.tbl td:not(:first-child){font-family:'JetBrains Mono',monospace;text-align:right;}
-.tbl tbody tr:hover{background:#f6f7fa;}
-.pill{display:inline-block;padding:3px 11px;border-radius:10px;font-size:10px;font-weight:700;}
-.pill-top{background:#e8eefb;color:#002D72;}
-.pill-mid{background:#f5e6a3;color:#8a5a00;}
-.pill-low{background:#a8dfc0;color:#0d6938;}
-.breakdown-desktop{display:block;}
-.breakdown-mobile{display:none;}
-.breakdown-card{background:#fff;border:1px solid #e2e5ed;border-radius:12px;padding:14px 16px;margin-bottom:8px;}
-.breakdown-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;}
-.breakdown-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
-.breakdown-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#002D72;margin-top:2px;}
-.insight-box{padding:16px 20px;border-radius:12px;background:#fefaed;border:1px solid #f5e6a3;border-left:4px solid #FFBF3F;font-size:13px;color:#4a3c00;line-height:1.7;margin-bottom:28px;}
-.insight-box strong{color:#002D72;font-weight:700;}
-.icard{padding:22px;border-radius:12px;margin-bottom:14px;border:1px solid;}
-.icard h3{font-size:15px;font-weight:800;margin-bottom:12px;}
-.icard .ic-body{font-size:13px;line-height:1.8;}
-.icard.ic-white{background:#fff;border-color:#e2e5ed;}
-.icard.ic-white h3{color:#0a0f1e;}
-.icard.ic-white .ic-body{color:#4a5269;}
-.icard.ic-blue{background:#e8eefb;border-color:#b3c7ec;}
-.icard.ic-blue h3{color:#002D72;}
-.icard.ic-blue .ic-body{color:#1a3a6b;}
-@media(max-width:640px){
-  .wrap{padding:20px 14px 60px;}
-  .controls-row{grid-template-columns:1fr;}
-  .algo-group{grid-template-columns:1fr 1fr;}
-  .stats{grid-template-columns:1fr;}
-  .hero-num{font-size:38px;}
-  .hero-top{flex-direction:column;align-items:flex-start;}
-  .hero-right{text-align:left;}
-  .mrow-header{display:none;}
-  .mrow-desktop{display:none!important;}
-  .mrow-mobile{display:block;}
-  .mrow-input{font-size:13px;padding:6px 8px;}
-  .breakdown-desktop{display:none;}
-  .breakdown-mobile{display:block;}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+font-family: ‘DM Sans’, Helvetica, Arial, sans-serif;
+background: #f4f5f9;
+color: #0a0f1e;
+line-height: 1.6;
+-webkit-font-smoothing: antialiased;
+min-height: 100vh;
+}
+
+.wrap {
+max-width: 860px;
+margin: 0 auto;
+padding: 40px 24px 80px;
+}
+
+/* Header */
+.hdr {
+text-align: center;
+margin-bottom: 40px;
+padding-bottom: 32px;
+border-bottom: 2px solid #e2e5ed;
+}
+.hdr-tag {
+display: inline-block;
+font-size: 11px;
+font-weight: 700;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: #002D72;
+margin-bottom: 14px;
+background: #e8eefb;
+padding: 4px 14px;
+border-radius: 20px;
+}
+.hdr h1 {
+font-size: 32px;
+font-weight: 800;
+letter-spacing: -0.5px;
+color: #0a0f1e;
+line-height: 1.2;
+margin-bottom: 10px;
+}
+.hdr p {
+font-size: 14px;
+color: #7c8399;
+max-width: 540px;
+margin: 0 auto;
+line-height: 1.7;
+}
+
+/* Tabs */
+.tabs {
+display: inline-flex;
+gap: 2px;
+margin-bottom: 28px;
+background: #eef0f5;
+padding: 4px;
+border-radius: 10px;
+}
+.tab-btn {
+padding: 9px 24px;
+border-radius: 8px;
+font-family: inherit;
+font-size: 13px;
+font-weight: 600;
+cursor: pointer;
+border: none;
+background: transparent;
+color: #7c8399;
+transition: all 0.15s;
+}
+.tab-btn.active {
+background: #fff;
+color: #0a0f1e;
+box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* Controls row */
+.controls-row {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 12px;
+margin-bottom: 28px;
+}
+.ctrl-card {
+padding: 18px 20px;
+background: #fff;
+border: 1px solid #e2e5ed;
+border-radius: 12px;
+border-top: 3px solid #002D72;
+}
+.ctrl-card.gold-top { border-top-color: #FFBF3F; }
+.ctrl-lbl {
+font-size: 10px;
+font-weight: 700;
+letter-spacing: 1.5px;
+text-transform: uppercase;
+color: #b5b9c8;
+margin-bottom: 8px;
+}
+.ctrl-card input, .ctrl-card select {
+width: 100%;
+border: none;
+outline: none;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 20px;
+font-weight: 700;
+color: #002D72;
+background: transparent;
+padding: 0;
+-moz-appearance: textfield;
+}
+.ctrl-card input::-webkit-inner-spin-button { opacity: 0.3; }
+.ctrl-card select {
+font-family: ‘DM Sans’, sans-serif;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+}
+
+/* Section */
+.sec { margin-bottom: 30px; }
+.sec-title {
+font-size: 18px;
+font-weight: 800;
+color: #0a0f1e;
+margin-bottom: 4px;
+}
+.sec-sub {
+font-size: 12px;
+color: #b5b9c8;
+margin-bottom: 16px;
+}
+
+/* Metric / channel rows */
+.mrow-header {
+display: grid;
+grid-template-columns: 160px 1fr 1fr 1fr 36px;
+gap: 12px;
+padding: 0 20px 8px;
+}
+.mrow-hdr-lbl {
+font-size: 10px;
+font-weight: 700;
+letter-spacing: 1px;
+text-transform: uppercase;
+color: #b5b9c8;
+}
+.mrow {
+padding: 14px 20px;
+background: #fff;
+border: 1px solid #e2e5ed;
+border-radius: 12px;
+margin-bottom: 8px;
+transition: border-color 0.15s;
+}
+.mrow:hover { border-color: #b5b9c8; }
+.mrow-top {
+display: grid;
+grid-template-columns: 160px 1fr 1fr 1fr 36px;
+align-items: center;
+gap: 12px;
+}
+.ch-name { display: flex; align-items: center; gap: 10px; }
+.ch-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ch-name-text { font-size: 14px; font-weight: 600; color: #0a0f1e; }
+
+.mrow-mobile { display: none; }
+
+.mrow-input {
+width: 100%;
+padding: 8px 10px;
+border: 2px solid #e2e5ed;
+border-radius: 8px;
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 14px;
+font-weight: 600;
+text-align: right;
+color: #002D72;
+background: #fff;
+outline: none;
+-moz-appearance: textfield;
+transition: border-color 0.15s;
+}
+.mrow-input:focus { border-color: #002D72; }
+.mrow-input::-webkit-inner-spin-button { opacity: 0.3; }
+
+.remove-btn {
+background: none;
+border: none;
+color: #d1d5e0;
+cursor: pointer;
+font-size: 18px;
+width: 28px; height: 28px;
+display: flex; align-items: center; justify-content: center;
+border-radius: 6px;
+transition: all 0.15s;
+}
+.remove-btn:hover { background: #fde8e8; color: #b91c3a; }
+
+.minibar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.minibar-track { flex: 1; height: 4px; border-radius: 2px; background: #eef0f5; }
+.minibar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+.minibar-num {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 11px; font-weight: 700;
+min-width: 28px; text-align: right;
+}
+
+/* Buttons */
+.btn {
+padding: 11px 22px;
+border-radius: 10px;
+font-family: inherit;
+font-size: 13px;
+font-weight: 700;
+cursor: pointer;
+border: none;
+transition: all 0.15s;
+}
+.btn-blue { background: #002D72; color: #fff; }
+.btn-blue:hover { background: #1a4a9a; }
+.btn-ghost { background: transparent; color: #7c8399; border: 2px solid #e2e5ed; }
+.btn-ghost:hover { border-color: #b5b9c8; color: #0a0f1e; }
+
+/* Algorithm picker */
+.algo-group {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 8px;
+margin-bottom: 20px;
+}
+.algo-opt {
+padding: 12px 10px;
+background: #fff;
+border: 2px solid #e2e5ed;
+border-radius: 10px;
+text-align: center;
+cursor: pointer;
+transition: all 0.15s;
+font-family: inherit;
+}
+.algo-opt:hover { border-color: #002D72; }
+.algo-opt.active { background: #002D72; border-color: #002D72; }
+.algo-opt-name { font-size: 12px; font-weight: 700; color: #0a0f1e; display: block; margin-bottom: 2px; }
+.algo-opt.active .algo-opt-name { color: #fff; }
+.algo-opt-desc { font-size: 10px; color: #b5b9c8; display: block; line-height: 1.3; }
+.algo-opt.active .algo-opt-desc { color: rgba(255,255,255,0.6); }
+
+/* Run button row */
+.run-row {
+display: flex;
+align-items: center;
+gap: 12px;
+margin-bottom: 28px;
+}
+
+/* Hero */
+.hero {
+padding: 28px 30px;
+border-radius: 16px;
+margin-bottom: 28px;
+border: 2px solid;
+position: relative;
+overflow: hidden;
+}
+.hero-top {
+display: flex;
+justify-content: space-between;
+align-items: flex-end;
+flex-wrap: wrap;
+gap: 16px;
+}
+.hero-num {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 52px;
+font-weight: 800;
+line-height: 1;
+letter-spacing: -2px;
+}
+.hero-max { font-size: 16px; font-weight: 500; color: #7c8399; margin-left: 4px; }
+.hero-right { text-align: right; }
+.hero-level { font-size: 20px; font-weight: 800; }
+.hero-desc { font-size: 12px; color: #7c8399; max-width: 300px; margin-top: 4px; line-height: 1.5; }
+.bar-track { margin-top: 22px; height: 8px; border-radius: 4px; background: rgba(0,0,0,0.07); }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.bar-labels {
+display: flex; justify-content: space-between; margin-top: 7px;
+font-size: 10px; font-weight: 600; color: #b5b9c8;
+text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Stats */
+.stats {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 12px;
+margin-bottom: 28px;
+}
+.stat-card {
+padding: 20px;
+background: #fff;
+border-radius: 12px;
+border: 1px solid #e2e5ed;
+}
+.stat-lbl {
+font-size: 10px; font-weight: 700;
+letter-spacing: 1.5px; text-transform: uppercase; color: #b5b9c8;
+}
+.stat-num {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 28px; font-weight: 800; color: #0a0f1e; margin-top: 6px;
+}
+.stat-num span { font-size: 14px; color: #b5b9c8; font-weight: 500; }
+.stat-detail { font-size: 12px; color: #7c8399; margin-top: 4px; }
+
+/* Table */
+.tbl-wrap {
+border-radius: 12px; overflow: hidden;
+border: 1px solid #e2e5ed; margin-bottom: 28px;
+}
+table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th {
+text-align: left; padding: 12px 16px; font-weight: 700;
+color: #7c8399; background: #f6f7fa;
+font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.tbl th:not(:first-child) { text-align: right; }
+.tbl td { padding: 12px 16px; border-top: 1px solid #eef0f5; font-weight: 500; vertical-align: middle; }
+.tbl td:not(:first-child) { font-family: ‘JetBrains Mono’, monospace; text-align: right; }
+.tbl tbody tr:hover { background: #f6f7fa; }
+
+.pill { display: inline-block; padding: 3px 11px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.pill-top { background: #e8eefb; color: #002D72; }
+.pill-mid { background: #f5e6a3; color: #8a5a00; }
+.pill-low { background: #a8dfc0; color: #0d6938; }
+
+/* Insight */
+.insight-box {
+padding: 16px 20px; border-radius: 12px;
+background: #fefaed; border: 1px solid #f5e6a3;
+border-left: 4px solid #FFBF3F;
+font-size: 13px; color: #4a3c00; line-height: 1.7;
+margin-bottom: 28px;
+}
+.insight-box strong { color: #002D72; font-weight: 700; }
+
+/* Info cards */
+.icard { padding: 22px; border-radius: 12px; margin-bottom: 14px; border: 1px solid; }
+.icard h3 { font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.icard .ic-body { font-size: 13px; line-height: 1.8; }
+.icard.ic-white { background: #fff; border-color: #e2e5ed; }
+.icard.ic-white h3 { color: #0a0f1e; }
+.icard.ic-white .ic-body { color: #4a5269; }
+.icard.ic-blue { background: #e8eefb; border-color: #b3c7ec; }
+.icard.ic-blue h3 { color: #002D72; }
+.icard.ic-blue .ic-body { color: #1a3a6b; }
+
+/* Channel breakdown cards (mobile) */
+.breakdown-mobile { display: none; }
+.breakdown-desktop { display: block; }
+
+.breakdown-card {
+background: #fff;
+border: 1px solid #e2e5ed;
+border-radius: 12px;
+padding: 14px 16px;
+margin-bottom: 8px;
+}
+.breakdown-card-top {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 2px;
+}
+.breakdown-stats {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 8px;
+}
+.breakdown-stat {}
+.breakdown-val {
+font-family: ‘JetBrains Mono’, monospace;
+font-size: 13px;
+font-weight: 700;
+color: #002D72;
+margin-top: 2px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+.wrap { padding: 20px 14px 60px; }
+.controls-row { grid-template-columns: 1fr; }
+.algo-group { grid-template-columns: 1fr 1fr; }
+.stats { grid-template-columns: 1fr; }
+.hero-num { font-size: 38px; }
+.hero-top { flex-direction: column; align-items: flex-start; }
+.hero-right { text-align: left; }
+
+/* Channel rows on mobile */
+.mrow-header { display: none; }
+.mrow-desktop { display: none !important; }
+.mrow-mobile { display: block; }
+.mrow-input-lbl {
+font-size: 9px;
+font-weight: 700;
+letter-spacing: 1px;
+text-transform: uppercase;
+color: #b5b9c8;
+margin-bottom: 3px;
+}
+.mrow-input { font-size: 13px; padding: 6px 8px; }
+.breakdown-desktop { display: none; }
+.breakdown-mobile { display: block; }
 }
 </style>
+
 </head>
 <body>
 <div class="wrap">
+
+  <!-- Instructions -->
+
   <div style="background:#fff;border:1px solid #e2e5ed;border-left:4px solid #002D72;border-radius:12px;padding:18px 22px;margin-bottom:32px;font-size:13px;color:#4a5269;line-height:1.8">
     <span style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b5b9c8;display:block;margin-bottom:10px">How to use</span>
-    <b style="color:#002D72">1. Configure</b> &mdash; Select your industry, set your budget and goal, then toggle channels and adjust their data.<br>
-    <b style="color:#002D72">2. Results</b> &mdash; Switch to the Results tab, pick an algorithm, and the allocation updates instantly.<br>
-    <b style="color:#002D72">3. Interpret</b> &mdash; The goal attainment score shows how much of your revenue target the allocation is projected to hit.
+    <b style="color:#002D72">1. Configure</b> — Set your total budget and revenue goal. Enter ROAS, current spend, and conversion rate for each channel.<br>
+    <b style="color:#002D72">2. Results</b> — Switch to the Results tab, pick an algorithm, and the allocation updates instantly. Switch algorithms to compare approaches.<br>
+    <b style="color:#002D72">3. Interpret</b> — The goal attainment score shows how much of your revenue target the allocation is projected to hit. The channel breakdown shows exact budget splits.
   </div>
+
+  <!-- Static tabs — never re-rendered -->
+
   <div class="tabs">
-    <button class="tab-btn active" id="tab-input" onclick="doTab(&apos;input&apos;)">Configure</button>
-    <button class="tab-btn" id="tab-results" onclick="doTab(&apos;results&apos;)">Calculate Allocation</button>
+    <button class="tab-btn active" id="tab-input"  onclick="doTab('input')">Configure</button>
+    <button class="tab-btn"        id="tab-results" onclick="doTab('results')">Results Breakdown</button>
   </div>
+
+  <!-- Configure panel -->
+
   <div id="panel-input">
-    <div class="controls-row">
-      <div class="ctrl-card">
-        <div class="ctrl-lbl">Total Budget</div>
-        <input type="number" value="100000" step="1000" min="0" oninput="totalBudget=parseFloat(this.value)||0;refreshMinibars();refreshResults()">
-      </div>
-      <div class="ctrl-card gold-top">
-        <div class="ctrl-lbl">Revenue Goal</div>
-        <input type="number" value="500000" step="10000" min="0" oninput="revenueGoal=parseFloat(this.value)||0;refreshResults()">
-      </div>
-    </div>
-    <div class="sec">
-      <div class="sec-title">Industry</div>
-      <div class="sec-sub">Sets benchmark ROAS and CVR values for each channel</div>
-      <div class="ind-row" id="ind-row"></div>
-    </div>
-    <div class="sec">
-      <div class="sec-title">Channels</div>
-      <div class="sec-sub">Select channels to include, then enter performance data</div>
-      <div class="ch-picker" id="ch-picker"></div>
-      <div style="margin-top:48px"><div class="sec-sub">Performance data</div></div>
-      <div class="mrow-header" style="margin-top:8px">
-        <div class="mrow-hdr-lbl">Channel</div>
-        <div class="mrow-hdr-lbl" style="text-align:right">ROAS</div>
-        <div class="mrow-hdr-lbl" style="text-align:right">Spend ($)</div>
-        <div class="mrow-hdr-lbl" style="text-align:right">CVR (%)</div>
-        <div></div>
-      </div>
-      <div id="channel-list"></div>
-    </div>
-    <div class="icard ic-blue"><h3>Data Sources</h3><div class="ic-body">
-      Enter historical ROAS from your ad platform dashboards (Google Ads, Meta Business Manager).
-      Conversion rates from your analytics platform. Current spend from your media plan or billing statements.
-      Update quarterly as campaign performance evolves.
-    </div></div>
+
+```
+<!-- Controls: static inputs wired directly, no re-render -->
+<div class="controls-row">
+  <div class="ctrl-card">
+    <div class="ctrl-lbl">Total Budget</div>
+    <input id="inp-budget" type="number" value="100000" step="1000" min="0" oninput="totalBudget=parseFloat(this.value)||0;refreshMinibars();refreshResults()">
   </div>
-  <div id="panel-results" style="display:none">
-    <div class="sec">
-      <div class="sec-title">Algorithm</div>
-      <div class="sec-sub">Select the model to drive recommendations &mdash; <span id="results-industry-label" style="color:#002D72;font-weight:700"></span> benchmarks</div>
-      <div class="algo-group" id="algo-group"></div>
-    </div>
-    <div id="results-output"></div>
+  <div class="ctrl-card gold-top">
+    <div class="ctrl-lbl">Revenue Goal</div>
+    <input id="inp-goal" type="number" value="500000" step="10000" min="0" oninput="revenueGoal=parseFloat(this.value)||0;refreshResults()">
   </div>
 </div>
+
+<!-- Channel rows: only the channel list is re-rendered -->
+<div class="sec">
+  <div class="sec-title">Channels</div>
+  <div class="sec-sub">Enter performance data for each channel</div>
+
+  <div class="mrow-header">
+    <div class="mrow-hdr-lbl">Channel</div>
+    <div class="mrow-hdr-lbl" style="text-align:right">ROAS</div>
+    <div class="mrow-hdr-lbl" style="text-align:right">Spend ($)</div>
+    <div class="mrow-hdr-lbl" style="text-align:right">CVR (%)</div>
+    <div></div>
+  </div>
+
+  <div id="channel-list"></div>
+
+  <div style="margin-top:12px">
+    <button class="btn btn-ghost" onclick="doAdd()">+ Add Channel</button>
+  </div>
+</div>
+
+<div class="icard ic-blue" style="margin-top:8px"><h3>Data Sources</h3><div class="ic-body">
+  Enter historical ROAS from your ad platform dashboards (Google Ads, Meta Business Manager).
+  Conversion rates from your analytics platform. Current spend from your media plan or billing statements.
+  Update quarterly as campaign performance evolves.
+</div></div>
+```
+
+  </div>
+
+  <!-- Results panel (hidden initially) -->
+
+  <div id="panel-results" style="display:none">
+
+```
+<!-- Algorithm picker lives here -->
+<div class="sec">
+  <div class="sec-title">Algorithm</div>
+  <div class="sec-sub">Select the model to drive recommendations</div>
+  <div class="algo-group" id="algo-group"></div>
+</div>
+```
+
+<!-- All results injected here -->
+
+```
+<div id="results-output"></div>
+```
+
+  </div>
+
+</div>
+
 <script>
 var PALETTE = ['#002D72','#1a6bb5','#4a9fd4','#7ab8e8','#003f99','#2d5fa8','#5b9fd6','#a0cce8'];
 
-var INDUSTRIES = [
-{id:‘banking’,    label:‘Banking’},
-{id:‘retail’,     label:‘Retail / E-commerce’},
-{id:‘healthcare’, label:‘Healthcare’},
-{id:‘insurance’,  label:‘Insurance’},
-{id:‘realestate’, label:‘Real Estate’},
-{id:‘b2bsaas’,    label:‘B2B / SaaS’},
-{id:‘nonprofit’,  label:‘Nonprofit’}
+var channels = [
+  { name:'Paid Search',   roas:4.2, spend:25000, cvr:3.5 },
+  { name:'Paid Social',   roas:2.8, spend:20000, cvr:1.8 },
+  { name:'Programmatic',  roas:1.9, spend:15000, cvr:0.9 },
+  { name:'Email',         roas:6.1, spend:8000,  cvr:5.2 },
+  { name:'SEO / Organic', roas:5.3, spend:10000, cvr:4.1 },
 ];
 
-var BENCHMARKS = {
-banking:    {‘Paid Search’:[5.2,25000,2.8],‘Paid Social’:[2.4,20000,1.1],‘Direct Mail’:[4.8,18000,2.5],‘Email’:[7.2,8000,4.8],‘SEO / Organic’:[6.1,10000,3.6],‘Podcast’:[2.8,5000,0.9],‘YouTube’:[3.2,12000,1.0],‘CTV’:[2.6,10000,0.7],‘Programmatic’:[1.8,15000,0.6],‘Affiliate’:[3.9,6000,2.2],‘Influencer’:[1.8,9000,0.8],‘Display’:[1.5,8000,0.5],‘OOH’:[1.3,15000,0.3]},
-retail:     {‘Paid Search’:[6.8,30000,5.2],‘Paid Social’:[3.8,25000,2.9],‘Direct Mail’:[3.2,12000,1.8],‘Email’:[9.5,8000,7.1],‘SEO / Organic’:[7.4,10000,5.0],‘Podcast’:[2.2,4000,0.8],‘YouTube’:[4.1,14000,1.8],‘CTV’:[2.9,10000,0.9],‘Programmatic’:[2.4,12000,1.1],‘Affiliate’:[6.2,8000,4.5],‘Influencer’:[3.5,12000,1.9],‘Display’:[2.1,8000,0.9],‘OOH’:[1.6,12000,0.4]},
-healthcare: {‘Paid Search’:[4.4,22000,2.1],‘Paid Social’:[2.2,16000,1.0],‘Direct Mail’:[3.8,14000,1.9],‘Email’:[5.8,7000,3.8],‘SEO / Organic’:[5.5,10000,3.2],‘Podcast’:[2.4,5000,0.7],‘YouTube’:[2.8,10000,0.8],‘CTV’:[2.2,8000,0.6],‘Programmatic’:[1.6,12000,0.5],‘Affiliate’:[3.0,5000,1.5],‘Influencer’:[2.0,8000,0.7],‘Display’:[1.4,7000,0.4],‘OOH’:[1.2,12000,0.3]},
-insurance:  {‘Paid Search’:[4.8,28000,2.4],‘Paid Social’:[2.0,18000,0.9],‘Direct Mail’:[5.2,20000,2.8],‘Email’:[6.5,8000,4.2],‘SEO / Organic’:[5.8,10000,3.4],‘Podcast’:[2.6,5000,0.8],‘YouTube’:[2.9,11000,0.9],‘CTV’:[2.4,10000,0.6],‘Programmatic’:[1.7,14000,0.5],‘Affiliate’:[4.2,6000,2.4],‘Influencer’:[1.6,7000,0.6],‘Display’:[1.4,8000,0.4],‘OOH’:[1.2,14000,0.3]},
-realestate: {‘Paid Search’:[4.6,24000,2.2],‘Paid Social’:[3.1,22000,1.6],‘Direct Mail’:[4.4,18000,2.4],‘Email’:[5.5,7000,3.5],‘SEO / Organic’:[5.9,10000,3.8],‘Podcast’:[2.4,5000,0.8],‘YouTube’:[3.4,13000,1.3],‘CTV’:[2.5,10000,0.7],‘Programmatic’:[1.7,12000,0.5],‘Affiliate’:[3.2,5000,1.8],‘Influencer’:[2.6,10000,1.1],‘Display’:[1.5,8000,0.5],‘OOH’:[1.8,16000,0.5]},
-b2bsaas:    {‘Paid Search’:[4.2,26000,1.8],‘Paid Social’:[2.8,22000,1.2],‘Direct Mail’:[2.6,10000,1.2],‘Email’:[8.4,9000,5.5],‘SEO / Organic’:[7.8,12000,4.2],‘Podcast’:[3.2,6000,1.1],‘YouTube’:[3.0,12000,0.9],‘CTV’:[2.0,8000,0.5],‘Programmatic’:[1.5,10000,0.4],‘Affiliate’:[4.8,7000,2.8],‘Influencer’:[2.2,8000,0.8],‘Display’:[1.3,7000,0.3],‘OOH’:[1.1,10000,0.2]},
-nonprofit:  {‘Paid Search’:[3.8,16000,2.4],‘Paid Social’:[2.6,14000,1.4],‘Direct Mail’:[4.2,16000,2.8],‘Email’:[8.8,7000,6.2],‘SEO / Organic’:[5.2,8000,3.8],‘Podcast’:[2.0,4000,0.8],‘YouTube’:[2.4,8000,0.8],‘CTV’:[1.8,7000,0.5],‘Programmatic’:[1.4,8000,0.4],‘Affiliate’:[2.8,4000,1.6],‘Influencer’:[2.2,7000,1.0],‘Display’:[1.2,6000,0.3],‘OOH’:[1.0,10000,0.2]}
-};
-
-var CHANNEL_NAMES = [‘Paid Search’,‘Paid Social’,‘Direct Mail’,‘Email’,‘SEO / Organic’,‘Podcast’,‘YouTube’,‘CTV’,‘Programmatic’,‘Affiliate’,‘Influencer’,‘Display’,‘OOH’];
-var currentIndustry = ‘banking’;
-
-function getBench(indId, name) {
-var b = BENCHMARKS[indId] && BENCHMARKS[indId][name];
-return b ? {roas:b[0],spend:b[1],cvr:b[2]} : {roas:2.0,spend:10000,cvr:1.0};
-}
-function makeCh(name) {
-var b = getBench(currentIndustry, name);
-return {name:name, roas:b.roas, spend:b.spend, cvr:b.cvr};
-}
-
-var channels = [0,1,2,3,4].map(function(i){ return makeCh(CHANNEL_NAMES[i]); });
 var totalBudget = 100000;
 var revenueGoal = 500000;
-var currentAlgo = ‘roi’;
-var currentTab  = ‘input’;
+var currentAlgo = 'roi';
+var currentTab  = 'input';
 
 var algoMeta = {
-roi:      {name:‘ROI-Weighted’,        desc:“Allocates proportionally to each channel’s ROAS.”},
-dr:       {name:‘Diminishing Returns’, desc:‘Applies a saturation curve to prevent over-concentration.’},
-goal:     {name:‘Goal-Based’,          desc:‘Reverse-engineers spend from your revenue target.’},
-combined: {name:‘Combined’,            desc:‘Equal blend of all three algorithms.’}
+  roi:      { name:'ROI-Weighted',        desc:"Allocates proportionally to each channel's ROAS." },
+  dr:       { name:'Diminishing Returns', desc:'Applies a saturation curve to prevent over-concentration.' },
+  goal:     { name:'Goal-Based',          desc:'Reverse-engineers spend from your revenue target.' },
+  combined: { name:'Combined',            desc:'Equal blend of all three algorithms.' }
 };
 
-function setIndustry(idx) {
-currentIndustry = INDUSTRIES[idx].id;
-channels = channels.map(function(c){ return makeCh(c.name); });
-renderIndustryPicker();
-renderChannelList();
-refreshResults();
-}
-
-function renderIndustryPicker() {
-var el = document.getElementById(‘ind-row’);
-if (!el) return;
-var parts = [];
-for (var i = 0; i < INDUSTRIES.length; i++) {
-var cls = ‘ind-chip’ + (currentIndustry === INDUSTRIES[i].id ? ’ active’ : ‘’);
-parts.push(’<button class="' + cls + '" onclick="setIndustry(' + i + ')">’ + INDUSTRIES[i].label + ‘</button>’);
-}
-el.innerHTML = parts.join(’’);
-}
-
-function isActive(name) {
-return channels.some(function(c){ return c.name === name; });
-}
-
-function toggleChannel(idx) {
-var name = CHANNEL_NAMES[idx];
-if (isActive(name)) {
-if (channels.length <= 2) return;
-channels = channels.filter(function(c){ return c.name !== name; });
-} else {
-channels.push(makeCh(name));
-}
-renderChannelPicker();
-renderChannelList();
-refreshResults();
-}
-
-function renderChannelPicker() {
-var el = document.getElementById(‘ch-picker’);
-if (!el) return;
-var parts = [];
-for (var i = 0; i < CHANNEL_NAMES.length; i++) {
-var name = CHANNEL_NAMES[i];
-var active = isActive(name);
-var chIdx = -1;
-if (active) { for (var j = 0; j < channels.length; j++) { if (channels[j].name === name) { chIdx = j; break; } } }
-var dotColor = active ? PALETTE[chIdx % PALETTE.length] : ‘#d1d5e0’;
-var cls = ‘ch-chip’ + (active ? ’ active’ : ‘’);
-var lbl = name + (active ? ’ \u00d7’ : ‘’);
-parts.push(’<button class="' + cls + '" onclick="toggleChannel(' + i + ')"><span class="ch-chip-dot" style="background:' + dotColor + '"></span>’ + lbl + ‘</button>’);
-}
-el.innerHTML = parts.join(’’);
-}
-
-function renderChannelList() {
-var allocs = runAlloc();
-var parts = [];
-for (var i = 0; i < channels.length; i++) {
-var ch = channels[i];
-var color = PALETTE[i % PALETTE.length];
-var barPct = totalBudget > 0 ? Math.round((allocs[i].budget / totalBudget) * 100) : 0;
-var r = [];
-r.push(’<div class="mrow">’);
-r.push(’<div class="mrow-desktop">’);
-r.push(’<div class="ch-name"><div class="ch-dot" style="background:' + color + '"></div><span class="ch-name-text">’ + esc(ch.name) + ‘</span></div>’);
-r.push(’<input class="mrow-input" type="number" step="0.1" min="0" value="' + ch.roas + '" oninput="channels[' + i + '].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()">’);
-r.push(’<input class="mrow-input" type="number" step="1000" min="0" value="' + ch.spend + '" oninput="channels[' + i + '].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()">’);
-r.push(’<input class="mrow-input" type="number" step="0.1" min="0" value="' + ch.cvr + '" oninput="channels[' + i + '].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()">’);
-r.push(’<button class="remove-btn" onclick="removeByIndex(' + i + ')">\u00d7</button>’);
-r.push(’</div>’);
-r.push(’<div class="mrow-mobile">’);
-r.push(’<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">’);
-r.push(’<div class="ch-name"><div class="ch-dot" style="background:' + color + '"></div><span class="ch-name-text">’ + esc(ch.name) + ‘</span></div>’);
-r.push(’<button class="remove-btn" onclick="removeByIndex(' + i + ')">\u00d7</button>’);
-r.push(’</div>’);
-r.push(’<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">’);
-r.push(’<div><div class="mrow-input-lbl">ROAS</div><input class="mrow-input" type="number" step="0.1" min="0" value="' + ch.roas + '" oninput="channels[' + i + '].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>’);
-r.push(’<div><div class="mrow-input-lbl">Spend ($)</div><input class="mrow-input" type="number" step="1000" min="0" value="' + ch.spend + '" oninput="channels[' + i + '].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>’);
-r.push(’<div><div class="mrow-input-lbl">CVR (%)</div><input class="mrow-input" type="number" step="0.1" min="0" value="' + ch.cvr + '" oninput="channels[' + i + '].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>’);
-r.push(’</div></div>’);
-r.push(’<div class="minibar"><div class="minibar-track"><div class="minibar-fill" id="mbf-' + i + '" style="width:' + barPct + '%;background:' + color + '"></div></div>’);
-r.push(’<span class="minibar-num" id="mbn-' + i + '" style="color:' + color + '">’ + barPct + ‘%</span></div>’);
-r.push(’</div>’);
-parts.push(r.join(’’));
-}
-document.getElementById(‘channel-list’).innerHTML = parts.join(’’);
-}
-
-function removeByIndex(i) {
-if (channels.length <= 2) return;
-channels.splice(i, 1);
-renderChannelPicker();
-renderChannelList();
-refreshResults();
-}
-
-function refreshMinibars() {
-var allocs = runAlloc();
-for (var i = 0; i < channels.length; i++) {
-var pct = totalBudget > 0 ? Math.round((allocs[i].budget / totalBudget) * 100) : 0;
-var f = document.getElementById(‘mbf-’ + i);
-var n = document.getElementById(‘mbn-’ + i);
-if (f) f.style.width = pct + ‘%’;
-if (n) n.textContent = pct + ‘%’;
-}
-}
-
+// ── Algorithms ──
 function allocROI(total) {
-var sum = channels.reduce(function(s,c){return s+c.roas;},0);
-return channels.map(function(c){var p=c.roas/sum;return{pct:p,budget:p*total};});
+  var sum = channels.reduce(function(s,c){return s+c.roas;},0);
+  return channels.map(function(c){var p=c.roas/sum;return{pct:p,budget:p*total};});
 }
 function allocDR(total) {
-var sat=0.6, ts=channels.reduce(function(s,c){return s+c.spend;},0)||1;
-var ws=channels.map(function(c){return Math.max(0.01,c.roas*(1-sat*(c.spend/ts)));});
-var sw=ws.reduce(function(a,b){return a+b;},0);
-return channels.map(function(c,i){var p=ws[i]/sw;return{pct:p,budget:p*total};});
+  var sat=0.6;
+  var ts=channels.reduce(function(s,c){return s+c.spend;},0)||1;
+  var ws=channels.map(function(c){return Math.max(0.01,c.roas*(1-sat*(c.spend/ts)));});
+  var sw=ws.reduce(function(a,b){return a+b;},0);
+  return channels.map(function(c,i){var p=ws[i]/sw;return{pct:p,budget:p*total};});
 }
 function allocGoal(total) {
-var sc=channels.map(function(c){return c.roas*Math.sqrt(c.cvr);});
-var ss=sc.reduce(function(a,b){return a+b;},0);
-return channels.map(function(c,i){var p=sc[i]/ss;return{pct:p,budget:p*total};});
+  var sc=channels.map(function(c){return c.roas*Math.sqrt(c.cvr);});
+  var ss=sc.reduce(function(a,b){return a+b;},0);
+  return channels.map(function(c,i){var p=sc[i]/ss;return{pct:p,budget:p*total};});
 }
 function runAlloc() {
-if (currentAlgo===‘roi’)  return allocROI(totalBudget);
-if (currentAlgo===‘dr’)   return allocDR(totalBudget);
-if (currentAlgo===‘goal’) return allocGoal(totalBudget);
-var r=allocROI(totalBudget),d=allocDR(totalBudget),g=allocGoal(totalBudget);
-return channels.map(function(c,i){return{pct:(r[i].pct+d[i].pct+g[i].pct)/3,budget:(r[i].budget+d[i].budget+g[i].budget)/3};});
+  if      (currentAlgo==='roi')  return allocROI(totalBudget);
+  else if (currentAlgo==='dr')   return allocDR(totalBudget);
+  else if (currentAlgo==='goal') return allocGoal(totalBudget);
+  var r=allocROI(totalBudget),d=allocDR(totalBudget),g=allocGoal(totalBudget);
+  return channels.map(function(c,i){
+    return{pct:(r[i].pct+d[i].pct+g[i].pct)/3,budget:(r[i].budget+d[i].budget+g[i].budget)/3};
+  });
 }
 
 function goalLevel(pct) {
-if(pct>=100) return{color:’#0d6938’,bg:‘linear-gradient(135deg,#edf9f2,#f5fcf8)’,border:’#a8dfc0’,label:‘Goal Achieved’};
-if(pct>=80)  return{color:’#002D72’,bg:‘linear-gradient(135deg,#eaf0fb,#f4f7fd)’,border:’#b3c7ec’,label:‘On Track’};
-if(pct>=60)  return{color:’#8a5a00’,bg:‘linear-gradient(135deg,#fefaed,#fffdf5)’,border:’#f5e6a3’,label:‘Behind Target’};
-return{color:’#b91c3a’,bg:‘linear-gradient(135deg,#fdf1f3,#fff8f9)’,border:’#f5c6cf’,label:‘Off Track’};
+  if(pct>=100) return{color:'#0d6938',bg:'linear-gradient(135deg,#edf9f2,#f5fcf8)',border:'#a8dfc0',label:'Goal Achieved'};
+  if(pct>=80)  return{color:'#002D72',bg:'linear-gradient(135deg,#eaf0fb,#f4f7fd)',border:'#b3c7ec',label:'On Track'};
+  if(pct>=60)  return{color:'#8a5a00',bg:'linear-gradient(135deg,#fefaed,#fffdf5)',border:'#f5e6a3',label:'Behind Target'};
+  return{color:'#b91c3a',bg:'linear-gradient(135deg,#fdf1f3,#fff8f9)',border:'#f5c6cf',label:'Off Track'};
 }
 
-function fmt(n){return ‘$’+Math.round(n).toLocaleString();}
-function esc(s){return String(s).replace(/&/g,’&’).replace(/</g,’<’).replace(/>/g,’>’).replace(/”/g,’"’);}
+function fmt(n){return '$'+Math.round(n).toLocaleString();}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+// ── Tab switching ──
 function doTab(t) {
-currentTab = t;
-document.getElementById(‘panel-input’).style.display   = t===‘input’   ? ‘’ : ‘none’;
-document.getElementById(‘panel-results’).style.display = t===‘results’ ? ‘’ : ‘none’;
-document.getElementById(‘tab-input’).classList.toggle(‘active’,   t===‘input’);
-document.getElementById(‘tab-results’).classList.toggle(‘active’, t===‘results’);
-if (t===‘results’) {
-var indLabel = INDUSTRIES.filter(function(i){return i.id===currentIndustry;})[0];
-var el = document.getElementById(‘results-industry-label’);
-if (el && indLabel) el.textContent = indLabel.label;
-renderAlgoPicker();
-runAndRenderResults();
-}
+  currentTab = t;
+  document.getElementById('panel-input').style.display   = t==='input'   ? '' : 'none';
+  document.getElementById('panel-results').style.display = t==='results' ? '' : 'none';
+  document.getElementById('tab-input').classList.toggle('active',   t==='input');
+  document.getElementById('tab-results').classList.toggle('active', t==='results');
+  if (t==='results') {
+    renderAlgoPicker();
+    runAndRenderResults();
+  }
 }
 
+// ── Render algo picker (results tab only) ──
 function renderAlgoPicker() {
-var keys=[‘roi’,‘dr’,‘goal’,‘combined’], parts=[];
-for (var i=0; i<keys.length; i++) {
-var k=keys[i], m=algoMeta[k];
-var cls = ‘algo-opt’ + (currentAlgo===k ? ’ active’ : ‘’);
-parts.push(’<div class="' + cls + '" onclick="selectAlgo(\'' + k + '\')"><span class="algo-opt-name">’ + m.name + ‘</span><span class="algo-opt-desc">’ + m.desc + ‘</span></div>’);
+  var keys=['roi','dr','goal','combined'];
+  var h='';
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i], m=algoMeta[k];
+    h+='<div class="algo-opt'+(currentAlgo===k?' active':'')+'" onclick="selectAlgo(\''+k+'\')">'+
+       '<span class="algo-opt-name">'+m.name+'</span>'+
+       '<span class="algo-opt-desc">'+m.desc+'</span>'+
+       '</div>';
+  }
+  document.getElementById('algo-group').innerHTML = h;
 }
-document.getElementById(‘algo-group’).innerHTML = parts.join(’’);
-}
-function selectAlgo(k){currentAlgo=k;renderAlgoPicker();runAndRenderResults();}
 
+function selectAlgo(k) {
+  currentAlgo = k;
+  renderAlgoPicker();
+  runAndRenderResults();
+}
+
+// ── Render channel list (called on add/remove only) ──
+function renderChannelList() {
+  var allocs = runAlloc();
+  var h = '';
+  for(var i=0;i<channels.length;i++){
+    var ch=channels[i], color=PALETTE[i%PALETTE.length];
+    var barPct = totalBudget>0 ? Math.round((allocs[i].budget/totalBudget)*100) : 0;
+    h+='<div class="mrow" id="ch-row-'+i+'">'+
+       // Desktop: single grid row
+       '<div class="mrow-top mrow-desktop">'+
+         '<div class="ch-name"><div class="ch-dot" style="background:'+color+'"></div>'+
+         '<span class="ch-name-text">'+esc(ch.name)+'</span></div>'+
+         '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.roas+'" '+
+           'oninput="channels['+i+'].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+         '<input class="mrow-input" type="number" step="1000" min="0" value="'+ch.spend+'" '+
+           'oninput="channels['+i+'].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+         '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.cvr+'" '+
+           'oninput="channels['+i+'].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
+         '<button class="remove-btn" onclick="doRemove('+i+')" title="Remove">×</button>'+
+       '</div>'+
+       // Mobile: stacked layout with labels
+       '<div class="mrow-mobile">'+
+         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+           '<div class="ch-name"><div class="ch-dot" style="background:'+color+'"></div>'+
+           '<span class="ch-name-text">'+esc(ch.name)+'</span></div>'+
+           '<button class="remove-btn" onclick="doRemove('+i+')" title="Remove">×</button>'+
+         '</div>'+
+         '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'+
+           '<div><div class="mrow-input-lbl">ROAS</div>'+
+           '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.roas+'" '+
+             'oninput="channels['+i+'].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
+           '<div><div class="mrow-input-lbl">Spend ($)</div>'+
+           '<input class="mrow-input" type="number" step="1000" min="0" value="'+ch.spend+'" '+
+             'oninput="channels['+i+'].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
+           '<div><div class="mrow-input-lbl">CVR (%)</div>'+
+           '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.cvr+'" '+
+             'oninput="channels['+i+'].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
+         '</div>'+
+       '</div>'+
+       '<div class="minibar" id="minibar-'+i+'">'+
+         '<div class="minibar-track"><div class="minibar-fill" id="minibar-fill-'+i+'" style="width:'+barPct+'%;background:'+color+'"></div></div>'+
+         '<span class="minibar-num" id="minibar-num-'+i+'" style="color:'+color+'">'+barPct+'%</span>'+
+       '</div>'+
+       '</div>';
+  }
+  document.getElementById('channel-list').innerHTML = h;
+}
+
+// ── Update only the minibar fills — no DOM rebuild ──
+function refreshMinibars() {
+  var allocs = runAlloc();
+  for(var i=0;i<channels.length;i++){
+    var barPct = totalBudget>0 ? Math.round((allocs[i].budget/totalBudget)*100) : 0;
+    var fill = document.getElementById('minibar-fill-'+i);
+    var num  = document.getElementById('minibar-num-'+i);
+    if(fill) fill.style.width = barPct+'%';
+    if(num)  num.textContent  = barPct+'%';
+  }
+}
+
+// ── Render full results output ──
 function runAndRenderResults() {
-var allocs=runAlloc(), projRev=0;
-for(var i=0;i<channels.length;i++) projRev+=allocs[i].budget*channels[i].roas;
-var blendedROAS=totalBudget>0?projRev/totalBudget:0;
-var goalPct=revenueGoal>0?Math.round((projRev/revenueGoal)*100):0;
-var gl=goalLevel(goalPct), topIdx=0;
-for(var ti=1;ti<allocs.length;ti++){if(allocs[ti].budget>allocs[topIdx].budget)topIdx=ti;}
-var p=[];
-p.push(’<div class="hero" style="background:'+gl.bg+';border-color:'+gl.border+'">’);
-p.push(’<div class="hero-top"><div><span class="hero-num" style="color:'+gl.color+'">’+goalPct+’%</span></div>’);
-p.push(’<div class="hero-right"><div class="hero-level" style="color:'+gl.color+'">’+gl.label+’</div>’);
-p.push(’<div class="hero-desc">Projected revenue covers ‘+goalPct+’% of the ‘+fmt(revenueGoal)+’ goal.</div></div></div>’);
-p.push(’<div class="bar-track"><div class="bar-fill" style="width:'+Math.min(goalPct,100)+'%;background:'+gl.color+'"></div></div>’);
-p.push(’<div class="bar-labels"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%+</span></div></div>’);
-p.push(’<div class="stats">’);
-p.push(’<div class="stat-card"><div class="stat-lbl">Projected Revenue</div><div class="stat-num">’+fmt(projRev)+’</div><div class="stat-detail">Across ‘+channels.length+’ channels</div></div>’);
-p.push(’<div class="stat-card"><div class="stat-lbl">Blended ROAS</div><div class="stat-num">’+blendedROAS.toFixed(2)+’<span>x</span></div><div class="stat-detail">Return per $ spent</div></div>’);
-p.push(’<div class="stat-card"><div class="stat-lbl">Total Budget</div><div class="stat-num">’+fmt(totalBudget)+’</div><div class="stat-detail">Across ‘+channels.length+’ channels</div></div>’);
-p.push(’</div>’);
-p.push(’<div class="sec"><div class="sec-title" style="margin-bottom:12px">Channel Breakdown</div>’);
-p.push(’<div class="tbl-wrap breakdown-desktop"><table class="tbl"><thead><tr><th>Channel</th><th>Allocation</th><th>Budget</th><th>Est. Return</th><th>ROAS</th></tr></thead><tbody>’);
-for(var ri=0;ri<channels.length;ri++){
-var rch=channels[ri],ra=allocs[ri],rPct=(ra.pct*100).toFixed(1);
-var rColor=PALETTE[ri%PALETTE.length],pc=ra.pct>0.25?‘pill-top’:ra.pct>0.15?‘pill-mid’:‘pill-low’;
-p.push(’<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+rColor+';margin-right:8px;vertical-align:middle"></span>’+esc(rch.name)+’</td>’);
-p.push(’<td><span class="pill '+pc+'">’+rPct+’%</span></td><td>’+fmt(ra.budget)+’</td><td>’+fmt(ra.budget*rch.roas)+’</td><td>’+rch.roas.toFixed(1)+‘x</td></tr>’);
-}
-p.push(’</tbody></table></div>’);
-p.push(’<div class="breakdown-mobile">’);
-for(var mi=0;mi<channels.length;mi++){
-var mch=channels[mi],ma=allocs[mi],mPct=(ma.pct*100).toFixed(1);
-var mColor=PALETTE[mi%PALETTE.length],mpc=ma.pct>0.25?‘pill-top’:ma.pct>0.15?‘pill-mid’:‘pill-low’;
-p.push(’<div class="breakdown-card">’);
-p.push(’<div class="breakdown-card-top"><div class="ch-name"><div class="ch-dot" style="background:'+mColor+'"></div><span class="ch-name-text">’+esc(mch.name)+’</span></div><span class="pill '+mpc+'">’+mPct+’%</span></div>’);
-p.push(’<div class="minibar" style="margin:8px 0 10px"><div class="minibar-track"><div class="minibar-fill" style="width:'+mPct+'%;background:'+mColor+'"></div></div></div>’);
-p.push(’<div class="breakdown-stats">’);
-p.push(’<div><div class="mrow-input-lbl">Budget</div><div class="breakdown-val">’+fmt(ma.budget)+’</div></div>’);
-p.push(’<div><div class="mrow-input-lbl">Est. Return</div><div class="breakdown-val">’+fmt(ma.budget*mch.roas)+’</div></div>’);
-p.push(’<div><div class="mrow-input-lbl">ROAS</div><div class="breakdown-val">’+mch.roas.toFixed(1)+‘x</div></div>’);
-p.push(’</div></div>’);
-}
-p.push(’</div></div>’);
-var goalLine=goalPct>=100
-?‘Budget is sufficient to achieve the ‘+fmt(revenueGoal)+’ revenue goal.’
-:‘Budget falls <strong>’+(100-goalPct)+’%</strong> short \u2014 consider increasing total budget or improving ROAS on underperforming channels.’;
-p.push(’<div class="insight-box"><strong>’+esc(channels[topIdx].name)+’</strong> receives the largest allocation at <strong>’+fmt(allocs[topIdx].budget)+’</strong> (’+(allocs[topIdx].pct*100).toFixed(1)+’%). ‘+goalLine+’</div>’);
-p.push(’<div class="icard ic-white"><h3>How Algorithms Compare</h3><div class="ic-body">’);
-p.push(’<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">ROI-Weighted</b> Rewards best performers \u2014 use when you have high-confidence ROAS data</div>’);
-p.push(’<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">Diminishing Returns</b> Prevents over-indexing \u2014 use for mature campaigns near saturation</div>’);
-p.push(’<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">Goal-Based</b> Works backward from revenue \u2014 use when hitting a specific target is required</div>’);
-p.push(’<div><b style="display:inline-block;min-width:170px;color:#002D72">Combined</b> Balanced blend \u2014 good default when uncertain which model to trust</div>’);
-p.push(’</div></div>’);
-document.getElementById(‘results-output’).innerHTML = p.join(’’);
+  var allocs = runAlloc();
+  var projRev=0;
+  for(var i=0;i<channels.length;i++) projRev+=allocs[i].budget*channels[i].roas;
+  var blendedROAS = totalBudget>0 ? projRev/totalBudget : 0;
+  var goalPct     = revenueGoal>0 ? Math.round((projRev/revenueGoal)*100) : 0;
+  var gl = goalLevel(goalPct);
+  var topIdx=0;
+  for(var ti=1;ti<allocs.length;ti++){if(allocs[ti].budget>allocs[topIdx].budget)topIdx=ti;}
+
+  var h='';
+
+  // Hero
+  h+='<div class="hero" style="background:'+gl.bg+';border-color:'+gl.border+'">';
+  h+='<div class="hero-top">';
+  h+='<div><span class="hero-num" style="color:'+gl.color+'">'+goalPct+'%</span></div>';
+  h+='<div class="hero-right"><div class="hero-level" style="color:'+gl.color+'">'+gl.label+'</div>';
+  h+='<div class="hero-desc">Projected revenue covers '+goalPct+'% of the '+fmt(revenueGoal)+' goal.</div></div>';
+  h+='</div>';
+  h+='<div class="bar-track"><div class="bar-fill" style="width:'+Math.min(goalPct,100)+'%;background:'+gl.color+'"></div></div>';
+  h+='<div class="bar-labels"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%+</span></div>';
+  h+='</div>';
+
+  // Stats
+  h+='<div class="stats">';
+  h+='<div class="stat-card"><div class="stat-lbl">Projected Revenue</div><div class="stat-num">'+fmt(projRev)+'</div><div class="stat-detail">Across '+channels.length+' channels</div></div>';
+  h+='<div class="stat-card"><div class="stat-lbl">Blended ROAS</div><div class="stat-num">'+blendedROAS.toFixed(2)+'<span>x</span></div><div class="stat-detail">Return per $ spent</div></div>';
+  h+='<div class="stat-card"><div class="stat-lbl">Total Budget</div><div class="stat-num">'+fmt(totalBudget)+'</div><div class="stat-detail">Across '+channels.length+' channels</div></div>';
+  h+='</div>';
+
+  // Table
+  h+='<div class="sec"><div class="sec-title" style="margin-bottom:12px">Channel Breakdown</div>';
+
+  // Desktop table
+  h+='<div class="tbl-wrap breakdown-desktop"><table class="tbl"><thead><tr>';
+  h+='<th>Channel</th><th>Allocation</th><th>Budget</th><th>Est. Return</th><th>ROAS</th>';
+  h+='</tr></thead><tbody>';
+  for(var ri=0;ri<channels.length;ri++){
+    var rch=channels[ri], ra=allocs[ri];
+    var rPct=(ra.pct*100).toFixed(1);
+    var estRet=ra.budget*rch.roas;
+    var rColor=PALETTE[ri%PALETTE.length];
+    var pillCls=ra.pct>0.25?'pill-top':ra.pct>0.15?'pill-mid':'pill-low';
+    h+='<tr>';
+    h+='<td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+rColor+';margin-right:8px;vertical-align:middle"></span>'+esc(rch.name)+'</td>';
+    h+='<td><span class="pill '+pillCls+'">'+rPct+'%</span></td>';
+    h+='<td>'+fmt(ra.budget)+'</td>';
+    h+='<td>'+fmt(estRet)+'</td>';
+    h+='<td>'+rch.roas.toFixed(1)+'x</td>';
+    h+='</tr>';
+  }
+  h+='</tbody></table></div>';
+
+  // Mobile cards
+  h+='<div class="breakdown-mobile">';
+  for(var mi=0;mi<channels.length;mi++){
+    var mch=channels[mi], ma=allocs[mi];
+    var mPct=(ma.pct*100).toFixed(1);
+    var mRet=ma.budget*mch.roas;
+    var mColor=PALETTE[mi%PALETTE.length];
+    var mPillCls=ma.pct>0.25?'pill-top':ma.pct>0.15?'pill-mid':'pill-low';
+    h+='<div class="breakdown-card">'+
+       '<div class="breakdown-card-top">'+
+         '<div class="ch-name"><div class="ch-dot" style="background:'+mColor+'"></div>'+
+         '<span class="ch-name-text">'+esc(mch.name)+'</span></div>'+
+         '<span class="pill '+mPillCls+'">'+mPct+'%</span>'+
+       '</div>'+
+       '<div class="minibar" style="margin:8px 0 10px">'+
+         '<div class="minibar-track"><div class="minibar-fill" style="width:'+mPct+'%;background:'+mColor+'"></div></div>'+
+       '</div>'+
+       '<div class="breakdown-stats">'+
+         '<div class="breakdown-stat"><div class="mrow-input-lbl">Budget</div><div class="breakdown-val">'+fmt(ma.budget)+'</div></div>'+
+         '<div class="breakdown-stat"><div class="mrow-input-lbl">Est. Return</div><div class="breakdown-val">'+fmt(mRet)+'</div></div>'+
+         '<div class="breakdown-stat"><div class="mrow-input-lbl">ROAS</div><div class="breakdown-val">'+mch.roas.toFixed(1)+'x</div></div>'+
+       '</div>'+
+       '</div>';
+  }
+  h+='</div></div>';
+
+  // Insight
+  var goalLine = goalPct>=100
+    ? 'Budget is sufficient to achieve the '+fmt(revenueGoal)+' revenue goal.'
+    : 'Budget falls <strong>'+(100-goalPct)+'%</strong> short — consider increasing total budget or improving ROAS on underperforming channels.';
+  h+='<div class="insight-box"><strong>'+esc(channels[topIdx].name)+'</strong> receives the largest allocation at ';
+  h+='<strong>'+fmt(allocs[topIdx].budget)+'</strong> ('+( allocs[topIdx].pct*100).toFixed(1)+'%). '+goalLine+'</div>';
+
+  // Info cards
+  h+='<div class="icard ic-white"><h3>How Algorithms Compare</h3><div class="ic-body">';
+  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">ROI-Weighted</b> Rewards best performers — use when you have high-confidence ROAS data</div>';
+  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">Diminishing Returns</b> Prevents over-indexing — use for mature campaigns near saturation</div>';
+  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">Goal-Based</b> Works backward from revenue — use when hitting a specific target is required</div>';
+  h+='<div><b style="display:inline-block;min-width:170px;color:#002D72">Combined</b> Balanced blend — good default when uncertain which model to trust</div>';
+  h+='</div></div>';
+
+
+
+  document.getElementById('results-output').innerHTML = h;
 }
 
-function refreshResults(){if(currentTab===‘results’)runAndRenderResults();}
+// ── refreshResults: only update if results tab is visible ──
+function refreshResults() {
+  if(currentTab==='results') runAndRenderResults();
+}
 
-renderIndustryPicker();
-renderChannelPicker();
+// ── Add / Remove ──
+function doAdd() {
+  var names=['YouTube','CTV','Direct Mail','Affiliate','Influencer','Podcast','Display','OOH'];
+  var used=channels.map(function(c){return c.name;});
+  var name=names.filter(function(n){return used.indexOf(n)<0;})[0]||'Channel '+(channels.length+1);
+  channels.push({name:name,roas:2.0,spend:10000,cvr:1.5});
+  renderChannelList();
+}
+function doRemove(i) {
+  if(channels.length>2){channels.splice(i,1);renderChannelList();}
+}
+
+// ── Init ──
 renderChannelList();
 renderAlgoPicker();
 </script>
