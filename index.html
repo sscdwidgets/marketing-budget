@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<!-- Community Bank Vulnerability Scoring Model v1.0 -->
+<!-- Community Bank Vulnerability Scoring Model v1.1 -->
 <!-- Last updated: 2026-03-06 -->
 <!-- Changelog:
+  v1.1 - Added postMessage iframe auto-resize for WordPress embedding,
+         MutationObserver for dynamic height changes on tab switch/dropdown
   v1.0 - Initial release with FDIC API auto-fill via Cloudflare Worker proxy,
          8 quantitative metrics, 8 qualitative factors, scoring engine,
          bank name search with typeahead, CERT # lookup, YoY growth calcs,
@@ -234,7 +236,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
     <b>FRED (KC Fed)</b> &mdash; fred.stlouisfed.org &mdash; Industry aggregate benchmarks
   </div></div>
 
-  <div style="text-align:center;padding:20px 0 0;font-size:11px;color:#b5b9c8;letter-spacing:0.3px">v1.0 &middot; Community Bank Vulnerability Scoring Model &middot; SouthState Correspondent</div>
+  <div style="text-align:center;padding:20px 0 0;font-size:11px;color:#b5b9c8;letter-spacing:0.3px">v1.1 &middot; Community Bank Vulnerability Scoring Model &middot; SouthState Correspondent</div>
 </div>
 
 <script>
@@ -416,7 +418,21 @@ setStatus("Could not connect to FDIC API. If this persists, deploy the Cloudflar
 function setField(id,val){metricValues[id]=String(val);document.getElementById("in-"+id).value=val;autoFilled[id]=true;document.getElementById("atag-"+id).style.display="inline-block";document.getElementById("mrow-"+id).className="mrow auto-filled";}
 function r2(v){return Math.round(v*100)/100;}
 
-buildMetricRows();buildQualRows();updateScores();
+/* ═══════════════════════════════════════════════════
+   IFRAME AUTO-RESIZE via postMessage
+   ═══════════════════════════════════════════════════ */
+function sendHeight(){
+  var h=document.documentElement.scrollHeight;
+  window.parent.postMessage({type:"bvs-resize",height:h},"*");
+}
+// Send height on load, resize, and after any interaction
+window.addEventListener("load",function(){setTimeout(sendHeight,100);});
+window.addEventListener("resize",sendHeight);
+// Observe DOM changes to catch dropdown open/close, status messages, tab switches
+var resizeObserver=new MutationObserver(function(){setTimeout(sendHeight,50);});
+resizeObserver.observe(document.body,{childList:true,subtree:true,attributes:true});
+
+buildMetricRows();buildQualRows();updateScores();sendHeight();
 </script>
 </body>
 </html>
