@@ -1,808 +1,422 @@
 <!DOCTYPE html>
-
+<!-- Community Bank Vulnerability Scoring Model v1.0 -->
+<!-- Last updated: 2026-03-06 -->
+<!-- Changelog:
+  v1.0 - Initial release with FDIC API auto-fill via Cloudflare Worker proxy,
+         8 quantitative metrics, 8 qualitative factors, scoring engine,
+         bank name search with typeahead, CERT # lookup, YoY growth calcs,
+         auto-tag for FDIC-sourced fields, consolidation hotspot auto-check
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Budget Allocator</title>
+<title>Community Bank Vulnerability Scoring Model</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@font-face{font-family:'Cera Pro';src:local('Cera Pro Light'),local('CeraPro-Light');font-weight:300}
+@font-face{font-family:'Cera Pro';src:local('Cera Pro'),local('CeraPro-Regular');font-weight:400}
+@font-face{font-family:'Cera Pro';src:local('Cera Pro Medium'),local('CeraPro-Medium');font-weight:500}
+@font-face{font-family:'Cera Pro';src:local('Cera Pro Bold'),local('CeraPro-Bold');font-weight:700}
+@font-face{font-family:'Cera Pro';src:local('Cera Pro Black'),local('CeraPro-Black');font-weight:900}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Cera Pro','SF Pro Display',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;background:#f4f5f9;color:#0a0f1e;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh}
+.wrap{max-width:860px;margin:0 auto;padding:20px 24px 80px}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.lookup{padding:24px;background:#fff;border:1px solid #e2e5ed;border-radius:14px;margin-bottom:24px}
+.lookup-title{font-size:14px;font-weight:700;color:#0a0f1e;margin-bottom:4px}
+.lookup-sub{font-size:12px;color:#b5b9c8;margin-bottom:14px}
+.lookup-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.lookup-field{flex:1;min-width:220px;position:relative}
+.lookup-input{width:100%;padding:11px 16px;border:2px solid #e2e5ed;border-radius:10px;font-family:inherit;font-size:14px;color:#0a0f1e;background:#fff;outline:none}
+.lookup-input:focus{border-color:#2454c4}
+.lookup-input::placeholder{color:#b5b9c8}
+.lookup-btn{padding:11px 24px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;border:none;background:#1a3f8f;color:#fff;white-space:nowrap}
+.lookup-btn:hover{background:#15347a}
+.lookup-btn:disabled{background:#b5b9c8;cursor:not-allowed}
+.lookup-or{font-size:12px;color:#b5b9c8;font-weight:500;padding-top:12px}
 
-body {
-font-family: ‘DM Sans’, Helvetica, Arial, sans-serif;
-background: #f4f5f9;
-color: #0a0f1e;
-line-height: 1.6;
--webkit-font-smoothing: antialiased;
-min-height: 100vh;
-}
+.dd{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e2e5ed;border-radius:10px;margin-top:4px;max-height:260px;overflow-y:auto;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.1);display:none}
+.dd.open{display:block}
+.dd-item{padding:10px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid #f4f5f9}
+.dd-item:hover{background:#f4f5f9}
+.dd-item:last-child{border-bottom:none}
+.dd-name{font-weight:500;color:#0a0f1e}
+.dd-meta{font-size:11px;color:#7c8399;margin-top:2px}
+.dd-none{padding:14px 16px;font-size:13px;color:#b5b9c8;font-style:italic}
 
-.wrap {
-max-width: 860px;
-margin: 0 auto;
-padding: 40px 24px 80px;
-}
+.lookup-status{margin-top:12px;font-size:12px;display:none;padding:10px 14px;border-radius:8px}
+.lookup-status.show{display:block}
+.lookup-status.loading{background:#e8eefb;color:#2454c4}
+.lookup-status.success{background:#edf9f2;color:#0d6938}
+.lookup-status.error{background:#fdf1f3;color:#b91c3a}
+.lookup-status.partial{background:#fefaed;color:#8a5a00}
 
-/* Header */
-.hdr {
-text-align: center;
-margin-bottom: 40px;
-padding-bottom: 32px;
-border-bottom: 2px solid #e2e5ed;
-}
-.hdr-tag {
-display: inline-block;
-font-size: 11px;
-font-weight: 700;
-letter-spacing: 2px;
-text-transform: uppercase;
-color: #002D72;
-margin-bottom: 14px;
-background: #e8eefb;
-padding: 4px 14px;
-border-radius: 20px;
-}
-.hdr h1 {
-font-size: 32px;
-font-weight: 800;
-letter-spacing: -0.5px;
-color: #0a0f1e;
-line-height: 1.2;
-margin-bottom: 10px;
-}
-.hdr p {
-font-size: 14px;
-color: #7c8399;
-max-width: 540px;
-margin: 0 auto;
-line-height: 1.7;
-}
+.auto-tag{display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:#e8eefb;color:#2454c4;margin-left:6px;vertical-align:middle}
 
-/* Tabs */
-.tabs {
-display: inline-flex;
-gap: 2px;
-margin-bottom: 28px;
-background: #eef0f5;
-padding: 4px;
-border-radius: 10px;
-}
-.tab-btn {
-padding: 9px 24px;
-border-radius: 8px;
-font-family: inherit;
-font-size: 13px;
-font-weight: 600;
-cursor: pointer;
-border: none;
-background: transparent;
-color: #7c8399;
-transition: all 0.15s;
-}
-.tab-btn.active {
-background: #fff;
-color: #0a0f1e;
-box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-}
+.hero{padding:30px;border-radius:16px;margin-bottom:30px;overflow:hidden;border:2px solid;transition:background 0.4s,border-color 0.4s}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px}
+.hero-num{font-size:52px;font-weight:900;line-height:1;letter-spacing:-2px;transition:color 0.4s}
+.hero-max{font-size:16px;font-weight:400;color:#7c8399;margin-left:4px}
+.hero-right{text-align:right}
+.hero-level{font-size:20px;font-weight:700;transition:color 0.4s}
+.hero-desc{font-size:12px;color:#7c8399;max-width:300px;margin-top:4px;line-height:1.5}
+.hero-bank{font-size:13px;font-weight:500;color:#7c8399;margin-top:8px}
+.bar-track{margin-top:22px;height:8px;border-radius:4px;background:rgba(0,0,0,0.07)}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease,background 0.4s}
+.bar-labels{display:flex;justify-content:space-between;margin-top:7px;font-size:10px;font-weight:500;color:#b5b9c8;text-transform:uppercase;letter-spacing:0.5px}
 
-/* Controls row */
-.controls-row {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 12px;
-margin-bottom: 28px;
-}
-.ctrl-card {
-padding: 18px 20px;
-background: #fff;
-border: 1px solid #e2e5ed;
-border-radius: 12px;
-border-top: 3px solid #002D72;
-}
-.ctrl-card.gold-top { border-top-color: #FFBF3F; }
-.ctrl-lbl {
-font-size: 10px;
-font-weight: 700;
-letter-spacing: 1.5px;
-text-transform: uppercase;
-color: #b5b9c8;
-margin-bottom: 8px;
-}
-.ctrl-card input, .ctrl-card select {
-width: 100%;
-border: none;
-outline: none;
-font-family: ‘JetBrains Mono’, monospace;
-font-size: 20px;
-font-weight: 700;
-color: #002D72;
-background: transparent;
-padding: 0;
--moz-appearance: textfield;
-}
-.ctrl-card input::-webkit-inner-spin-button { opacity: 0.3; }
-.ctrl-card select {
-font-family: ‘DM Sans’, sans-serif;
-font-size: 14px;
-font-weight: 600;
-cursor: pointer;
-}
+.tabs{display:inline-flex;gap:2px;margin-bottom:28px;background:#eef0f5;padding:4px;border-radius:10px}
+.tab-btn{padding:9px 24px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:#7c8399;transition:all 0.2s}
+.tab-btn.active{background:#fff;color:#0a0f1e;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
 
-/* Section */
-.sec { margin-bottom: 30px; }
-.sec-title {
-font-size: 18px;
-font-weight: 800;
-color: #0a0f1e;
-margin-bottom: 4px;
-}
-.sec-sub {
-font-size: 12px;
-color: #b5b9c8;
-margin-bottom: 16px;
-}
+.sec{margin-bottom:30px}
+.sec-title{font-size:18px;font-weight:700;color:#0a0f1e;margin-bottom:4px}
+.sec-sub{font-size:12px;color:#b5b9c8;margin-bottom:16px}
 
-/* Metric / channel rows */
-.mrow-header {
-display: grid;
-grid-template-columns: 160px 1fr 1fr 1fr 36px;
-gap: 12px;
-padding: 0 20px 8px;
-}
-.mrow-hdr-lbl {
-font-size: 10px;
-font-weight: 700;
-letter-spacing: 1px;
-text-transform: uppercase;
-color: #b5b9c8;
-}
-.mrow {
-padding: 14px 20px;
-background: #fff;
-border: 1px solid #e2e5ed;
-border-radius: 12px;
-margin-bottom: 8px;
-transition: border-color 0.15s;
-}
-.mrow:hover { border-color: #b5b9c8; }
-.mrow-top {
-display: grid;
-grid-template-columns: 160px 1fr 1fr 1fr 36px;
-align-items: center;
-gap: 12px;
-}
-.ch-name { display: flex; align-items: center; gap: 10px; }
-.ch-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.ch-name-text { font-size: 14px; font-weight: 600; color: #0a0f1e; }
+.mrow{padding:16px 20px;background:#fff;border:1px solid #e2e5ed;border-radius:12px;margin-bottom:8px;transition:border-color 0.2s}
+.mrow:hover{border-color:#b5b9c8}
+.mrow.auto-filled{border-color:#b3c7ec;background:#fafbff}
+.mrow-top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.mrow-info{flex:1;min-width:180px}
+.mrow-name{font-size:14px;font-weight:500;color:#0a0f1e}
+.mrow-hint{font-size:11px;color:#b5b9c8;margin-top:2px}
+.mrow-input-wrap{display:flex;align-items:center;gap:6px}
+.mrow-input{width:100px;padding:9px 12px;border:2px solid #e2e5ed;border-radius:8px;font-family:inherit;font-size:14px;font-weight:500;text-align:right;color:#2454c4;background:#fff;outline:none;transition:border-color 0.2s}
+.mrow-input:focus{border-color:#2454c4}
+.mrow-unit{font-size:12px;color:#b5b9c8;min-width:22px}
+.minibar{margin-top:10px;display:flex;align-items:center;gap:10px}
+.minibar-track{flex:1;height:4px;border-radius:2px;background:#eef0f5}
+.minibar-fill{height:100%;border-radius:2px;transition:width 0.3s,background 0.3s}
+.minibar-num{font-size:12px;font-weight:700;min-width:18px;text-align:right;transition:color 0.3s}
 
-.mrow-mobile { display: none; }
+.qrow{display:flex;align-items:center;gap:14px;padding:13px 18px;background:#fff;border:1px solid #e2e5ed;border-radius:12px;margin-bottom:6px;cursor:pointer;user-select:none;transition:all 0.2s}
+.qrow:hover{border-color:#b5b9c8}
+.qrow.checked{background:#fdf1f3;border-color:#f5c6cf}
+.qbox{width:22px;height:22px;border:2px solid #dcdfe8;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;color:transparent;transition:all 0.2s}
+.qrow.checked .qbox{background:#b91c3a;border-color:#b91c3a;color:#fff}
+.qlabel{flex:1;font-size:14px;font-weight:500;color:#262d40}
+.qpts{font-size:11px;font-weight:700;padding:3px 11px;border-radius:12px;background:#eef0f5;color:#b5b9c8;transition:all 0.2s}
+.qrow.checked .qpts{background:#f5c6cf;color:#b91c3a}
 
-.mrow-input {
-width: 100%;
-padding: 8px 10px;
-border: 2px solid #e2e5ed;
-border-radius: 8px;
-font-family: ‘JetBrains Mono’, monospace;
-font-size: 14px;
-font-weight: 600;
-text-align: right;
-color: #002D72;
-background: #fff;
-outline: none;
--moz-appearance: textfield;
-transition: border-color 0.15s;
-}
-.mrow-input:focus { border-color: #002D72; }
-.mrow-input::-webkit-inner-spin-button { opacity: 0.3; }
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px}
+.stat-card{padding:20px;background:#fff;border-radius:12px;border:1px solid #e2e5ed}
+.stat-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b5b9c8}
+.stat-num{font-size:28px;font-weight:900;color:#0a0f1e;margin-top:6px;letter-spacing:-0.5px}
+.stat-num span{font-size:14px;color:#b5b9c8;font-weight:400}
+.stat-detail{font-size:12px;color:#7c8399;margin-top:4px}
 
-.remove-btn {
-background: none;
-border: none;
-color: #d1d5e0;
-cursor: pointer;
-font-size: 18px;
-width: 28px; height: 28px;
-display: flex; align-items: center; justify-content: center;
-border-radius: 6px;
-transition: all 0.15s;
-}
-.remove-btn:hover { background: #fde8e8; color: #b91c3a; }
+.tbl-wrap{border-radius:12px;overflow:hidden;border:1px solid #e2e5ed;margin-bottom:28px}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:12px 16px;font-weight:700;color:#7c8399;background:#f6f7fa;font-size:11px;letter-spacing:0.5px;text-transform:uppercase}
+.tbl th:nth-child(2){text-align:right}
+.tbl th:nth-child(3),.tbl th:nth-child(4){text-align:center}
+.tbl td{padding:12px 16px;border-top:1px solid #eef0f5;font-weight:500}
+.tbl td:nth-child(2){text-align:right}
+.tbl td:nth-child(3){text-align:center}
+.tbl td:nth-child(4){text-align:center;font-weight:700}
+.tbl tbody tr:hover{background:#f6f7fa}
 
-.minibar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.minibar-track { flex: 1; height: 4px; border-radius: 2px; background: #eef0f5; }
-.minibar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
-.minibar-num {
-font-family: ‘JetBrains Mono’, monospace;
-font-size: 11px; font-weight: 700;
-min-width: 28px; text-align: right;
-}
+.pill{display:inline-block;padding:3px 11px;border-radius:10px;font-size:10px;font-weight:700}
+.pill-r{background:#f5c6cf;color:#b91c3a}
+.pill-a{background:#f5e6a3;color:#8a5a00}
+.pill-g{background:#a8dfc0;color:#0d6938}
 
-/* Buttons */
-.btn {
-padding: 11px 22px;
-border-radius: 10px;
-font-family: inherit;
-font-size: 13px;
-font-weight: 700;
-cursor: pointer;
-border: none;
-transition: all 0.15s;
-}
-.btn-blue { background: #002D72; color: #fff; }
-.btn-blue:hover { background: #1a4a9a; }
-.btn-ghost { background: transparent; color: #7c8399; border: 2px solid #e2e5ed; }
-.btn-ghost:hover { border-color: #b5b9c8; color: #0a0f1e; }
+.flag-item{padding:10px 16px;border-radius:10px;background:#fdf1f3;border:1px solid #f5c6cf;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px}
+.flag-item .fl{color:#7f1d2e;font-weight:500}
+.flag-item .fs{font-weight:700;color:#b91c3a}
 
-/* Algorithm picker */
-.algo-group {
-display: grid;
-grid-template-columns: repeat(4, 1fr);
-gap: 8px;
-margin-bottom: 20px;
-}
-.algo-opt {
-padding: 12px 10px;
-background: #fff;
-border: 2px solid #e2e5ed;
-border-radius: 10px;
-text-align: center;
-cursor: pointer;
-transition: all 0.15s;
-font-family: inherit;
-}
-.algo-opt:hover { border-color: #002D72; }
-.algo-opt.active { background: #002D72; border-color: #002D72; }
-.algo-opt-name { font-size: 12px; font-weight: 700; color: #0a0f1e; display: block; margin-bottom: 2px; }
-.algo-opt.active .algo-opt-name { color: #fff; }
-.algo-opt-desc { font-size: 10px; color: #b5b9c8; display: block; line-height: 1.3; }
-.algo-opt.active .algo-opt-desc { color: rgba(255,255,255,0.6); }
+.icard{padding:22px;border-radius:12px;margin-bottom:14px;border:1px solid}
+.icard h3{font-size:15px;font-weight:700;margin-bottom:12px}
+.icard .ic-body{font-size:13px;line-height:1.8}
+.icard.ic-white{background:#fff;border-color:#e2e5ed}
+.icard.ic-white h3{color:#0a0f1e}
+.icard.ic-white .ic-body{color:#4a5269}
+.icard.ic-blue{background:#e8eefb;border-color:#b3c7ec}
+.icard.ic-blue h3{color:#1a3f8f}
+.icard.ic-blue .ic-body{color:#2a4a8f}
+.icard.ic-amber{background:#fefaed;border-color:#f5e6a3}
+.icard.ic-amber .ic-body{color:#78500a}
+.sc-row{margin-bottom:4px}
+.sc-row b{display:inline-block;min-width:140px}
+.none-msg{font-size:13px;color:#b5b9c8;font-style:italic}
 
-/* Run button row */
-.run-row {
-display: flex;
-align-items: center;
-gap: 12px;
-margin-bottom: 28px;
-}
+#view-input,#view-results{display:none}
+#view-input.visible,#view-results.visible{display:block}
 
-/* Hero */
-.hero {
-padding: 28px 30px;
-border-radius: 16px;
-margin-bottom: 28px;
-border: 2px solid;
-position: relative;
-overflow: hidden;
-}
-.hero-top {
-display: flex;
-justify-content: space-between;
-align-items: flex-end;
-flex-wrap: wrap;
-gap: 16px;
-}
-.hero-num {
-font-family: ‘JetBrains Mono’, monospace;
-font-size: 52px;
-font-weight: 800;
-line-height: 1;
-letter-spacing: -2px;
-}
-.hero-max { font-size: 16px; font-weight: 500; color: #7c8399; margin-left: 4px; }
-.hero-right { text-align: right; }
-.hero-level { font-size: 20px; font-weight: 800; }
-.hero-desc { font-size: 12px; color: #7c8399; max-width: 300px; margin-top: 4px; line-height: 1.5; }
-.bar-track { margin-top: 22px; height: 8px; border-radius: 4px; background: rgba(0,0,0,0.07); }
-.bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-.bar-labels {
-display: flex; justify-content: space-between; margin-top: 7px;
-font-size: 10px; font-weight: 600; color: #b5b9c8;
-text-transform: uppercase; letter-spacing: 0.5px;
-}
-
-/* Stats */
-.stats {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr;
-gap: 12px;
-margin-bottom: 28px;
-}
-.stat-card {
-padding: 20px;
-background: #fff;
-border-radius: 12px;
-border: 1px solid #e2e5ed;
-}
-.stat-lbl {
-font-size: 10px; font-weight: 700;
-letter-spacing: 1.5px; text-transform: uppercase; color: #b5b9c8;
-}
-.stat-num {
-font-family: ‘JetBrains Mono’, monospace;
-font-size: 28px; font-weight: 800; color: #0a0f1e; margin-top: 6px;
-}
-.stat-num span { font-size: 14px; color: #b5b9c8; font-weight: 500; }
-.stat-detail { font-size: 12px; color: #7c8399; margin-top: 4px; }
-
-/* Table */
-.tbl-wrap {
-border-radius: 12px; overflow: hidden;
-border: 1px solid #e2e5ed; margin-bottom: 28px;
-}
-table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tbl th {
-text-align: left; padding: 12px 16px; font-weight: 700;
-color: #7c8399; background: #f6f7fa;
-font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
-}
-.tbl th:not(:first-child) { text-align: right; }
-.tbl td { padding: 12px 16px; border-top: 1px solid #eef0f5; font-weight: 500; vertical-align: middle; }
-.tbl td:not(:first-child) { font-family: ‘JetBrains Mono’, monospace; text-align: right; }
-.tbl tbody tr:hover { background: #f6f7fa; }
-
-.pill { display: inline-block; padding: 3px 11px; border-radius: 10px; font-size: 10px; font-weight: 700; }
-.pill-top { background: #e8eefb; color: #002D72; }
-.pill-mid { background: #f5e6a3; color: #8a5a00; }
-.pill-low { background: #a8dfc0; color: #0d6938; }
-
-/* Insight */
-.insight-box {
-padding: 16px 20px; border-radius: 12px;
-background: #fefaed; border: 1px solid #f5e6a3;
-border-left: 4px solid #FFBF3F;
-font-size: 13px; color: #4a3c00; line-height: 1.7;
-margin-bottom: 28px;
-}
-.insight-box strong { color: #002D72; font-weight: 700; }
-
-/* Info cards */
-.icard { padding: 22px; border-radius: 12px; margin-bottom: 14px; border: 1px solid; }
-.icard h3 { font-size: 15px; font-weight: 800; margin-bottom: 12px; }
-.icard .ic-body { font-size: 13px; line-height: 1.8; }
-.icard.ic-white { background: #fff; border-color: #e2e5ed; }
-.icard.ic-white h3 { color: #0a0f1e; }
-.icard.ic-white .ic-body { color: #4a5269; }
-.icard.ic-blue { background: #e8eefb; border-color: #b3c7ec; }
-.icard.ic-blue h3 { color: #002D72; }
-.icard.ic-blue .ic-body { color: #1a3a6b; }
-
-/* Channel breakdown cards (mobile) */
-.breakdown-mobile { display: none; }
-.breakdown-desktop { display: block; }
-
-.breakdown-card {
-background: #fff;
-border: 1px solid #e2e5ed;
-border-radius: 12px;
-padding: 14px 16px;
-margin-bottom: 8px;
-}
-.breakdown-card-top {
-display: flex;
-align-items: center;
-justify-content: space-between;
-margin-bottom: 2px;
-}
-.breakdown-stats {
-display: grid;
-grid-template-columns: 1fr 1fr 1fr;
-gap: 8px;
-}
-.breakdown-stat {}
-.breakdown-val {
-font-family: ‘JetBrains Mono’, monospace;
-font-size: 13px;
-font-weight: 700;
-color: #002D72;
-margin-top: 2px;
-}
-
-/* Responsive */
-@media (max-width: 640px) {
-.wrap { padding: 20px 14px 60px; }
-.controls-row { grid-template-columns: 1fr; }
-.algo-group { grid-template-columns: 1fr 1fr; }
-.stats { grid-template-columns: 1fr; }
-.hero-num { font-size: 38px; }
-.hero-top { flex-direction: column; align-items: flex-start; }
-.hero-right { text-align: left; }
-
-/* Channel rows on mobile */
-.mrow-header { display: none; }
-.mrow-desktop { display: none !important; }
-.mrow-mobile { display: block; }
-.mrow-input-lbl {
-font-size: 9px;
-font-weight: 700;
-letter-spacing: 1px;
-text-transform: uppercase;
-color: #b5b9c8;
-margin-bottom: 3px;
-}
-.mrow-input { font-size: 13px; padding: 6px 8px; }
-.breakdown-desktop { display: none; }
-.breakdown-mobile { display: block; }
+@media(max-width:640px){
+.wrap{padding:16px 14px 60px}
+.hero-num{font-size:38px}
+.stats{grid-template-columns:1fr}
+.mrow-top{flex-direction:column;align-items:flex-start}
+.mrow-input-wrap{align-self:flex-end}
+.hero-top{flex-direction:column;align-items:flex-start}
+.hero-right{text-align:left}
+.lookup-row{flex-direction:column}
+.lookup-or{padding-top:0;text-align:center}
 }
 </style>
-
 </head>
 <body>
 <div class="wrap">
 
-  <!-- Instructions -->
-
-  <div style="background:#fff;border:1px solid #e2e5ed;border-left:4px solid #002D72;border-radius:12px;padding:18px 22px;margin-bottom:32px;font-size:13px;color:#4a5269;line-height:1.8">
-    <span style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b5b9c8;display:block;margin-bottom:10px">How to use</span>
-    <b style="color:#002D72">1. Configure</b> — Set your total budget and revenue goal. Enter ROAS, current spend, and conversion rate for each channel.<br>
-    <b style="color:#002D72">2. Results</b> — Switch to the Results tab, pick an algorithm, and the allocation updates instantly. Switch algorithms to compare approaches.<br>
-    <b style="color:#002D72">3. Interpret</b> — The goal attainment score shows how much of your revenue target the allocation is projected to hit. The channel breakdown shows exact budget splits.
+  <div class="lookup">
+    <div class="lookup-title">Auto-Fill from FDIC Data</div>
+    <div class="lookup-sub">Search by bank name or enter an FDIC certificate number to auto-populate available metrics</div>
+    <div class="lookup-row">
+      <div class="lookup-field">
+        <input class="lookup-input" id="bankSearch" type="text" placeholder="Search bank name (e.g. First National Bank)..." autocomplete="off">
+        <div class="dd" id="bankDD"></div>
+      </div>
+      <div class="lookup-or">or</div>
+      <div class="lookup-field" style="min-width:140px;flex:0 0 auto">
+        <input class="lookup-input" id="certInput" type="number" placeholder="CERT #" style="width:140px">
+      </div>
+      <button class="lookup-btn" id="lookupBtn" onclick="doLookup()">Look Up</button>
+    </div>
+    <div class="lookup-status" id="lookupStatus"></div>
   </div>
 
-  <!-- Static tabs — never re-rendered -->
+  <div class="hero" id="heroCard" style="background:linear-gradient(135deg,#edf9f2,#f5fcf8);border-color:#a8dfc0">
+    <div class="hero-top">
+      <div><span class="hero-num" id="heroNum" style="color:#0d6938">0</span><span class="hero-max">/ 133</span></div>
+      <div class="hero-right"><div class="hero-level" id="heroLevel" style="color:#0d6938">Low Risk</div><div class="hero-desc" id="heroDesc">Well-positioned for independence</div></div>
+    </div>
+    <div class="hero-bank" id="heroBankName" style="display:none"></div>
+    <div class="bar-track"><div class="bar-fill" id="heroBar" style="width:0%;background:#0d6938"></div></div>
+    <div class="bar-labels"><span>Low</span><span>Moderate</span><span>Elevated</span><span>High</span><span>Critical</span></div>
+  </div>
 
   <div class="tabs">
-    <button class="tab-btn active" id="tab-input"  onclick="doTab('input')">Configure</button>
-    <button class="tab-btn"        id="tab-results" onclick="doTab('results')">Calculate Allocation</button>
+    <button class="tab-btn active" id="tabInput" onclick="switchTab('input')">Input Mode</button>
+    <button class="tab-btn" id="tabResults" onclick="switchTab('results')">Results Breakdown</button>
   </div>
 
-  <!-- Configure panel -->
-
-  <div id="panel-input">
-
-```
-<!-- Controls: static inputs wired directly, no re-render -->
-<div class="controls-row">
-  <div class="ctrl-card">
-    <div class="ctrl-lbl">Total Budget</div>
-    <input id="inp-budget" type="number" value="100000" step="1000" min="0" oninput="totalBudget=parseFloat(this.value)||0;refreshMinibars();refreshResults()">
-  </div>
-  <div class="ctrl-card gold-top">
-    <div class="ctrl-lbl">Revenue Goal</div>
-    <input id="inp-goal" type="number" value="500000" step="10000" min="0" oninput="revenueGoal=parseFloat(this.value)||0;refreshResults()">
-  </div>
-</div>
-
-<!-- Channel rows: only the channel list is re-rendered -->
-<div class="sec">
-  <div class="sec-title">Channels</div>
-  <div class="sec-sub">Enter performance data for each channel</div>
-
-  <div class="mrow-header">
-    <div class="mrow-hdr-lbl">Channel</div>
-    <div class="mrow-hdr-lbl" style="text-align:right">ROAS</div>
-    <div class="mrow-hdr-lbl" style="text-align:right">Spend ($)</div>
-    <div class="mrow-hdr-lbl" style="text-align:right">CVR (%)</div>
-    <div></div>
+  <div id="view-input" class="visible">
+    <div class="sec">
+      <div class="sec-title">Quantitative Metrics</div>
+      <div class="sec-sub">Source from FDIC call reports at banks.data.fdic.gov &mdash; <span style="color:#2454c4">blue-highlighted</span> fields were auto-filled</div>
+      <div id="metricRows"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Qualitative Factors</div>
+      <div class="sec-sub">Check all that apply based on your knowledge of the institution</div>
+      <div id="qualRows"></div>
+    </div>
   </div>
 
-  <div id="channel-list"></div>
-
-  <div style="margin-top:12px">
-    <button class="btn btn-ghost" onclick="doAdd()">+ Add Channel</button>
-  </div>
-</div>
-
-<div class="icard ic-blue" style="margin-top:8px"><h3>Data Sources</h3><div class="ic-body">
-  Enter historical ROAS from your ad platform dashboards (Google Ads, Meta Business Manager).
-  Conversion rates from your analytics platform. Current spend from your media plan or billing statements.
-  Update quarterly as campaign performance evolves.
-</div></div>
-
-  </div>
-
-  <!-- Results panel (hidden initially) -->
-
-  <div id="panel-results" style="display:none">
-
-<!-- Algorithm picker lives here -->
-<div class="sec">
-  <div class="sec-title">Algorithm</div>
-  <div class="sec-sub">Select the model to drive recommendations</div>
-  <div class="algo-group" id="algo-group"></div>
-</div>
-
-<!-- All results injected here -->
-
-<div id="results-output"></div>
-
+  <div id="view-results">
+    <div class="stats">
+      <div class="stat-card"><div class="stat-lbl">Quantitative Score</div><div class="stat-num" id="rQN">0<span> / 80</span></div><div class="stat-detail" id="rQD">0 of 8 metrics entered</div></div>
+      <div class="stat-card"><div class="stat-lbl">Qualitative Score</div><div class="stat-num" id="rQLN">0<span> / 53</span></div><div class="stat-detail" id="rQLD">0 of 8 factors flagged</div></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title" style="margin-bottom:12px">Metric Breakdown</div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Metric</th><th style="text-align:right">Value</th><th>Rating</th><th>Score</th></tr></thead><tbody id="rTB"></tbody></table></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title" style="margin-bottom:12px">Qualitative Factors Flagged</div>
+      <div id="rFL"></div>
+    </div>
+    <div class="icard ic-white"><h3>How to Interpret</h3><div class="ic-body">
+      <div class="sc-row"><b style="color:#b91c3a">70%+ Critical</b> Expect acquisition or regulatory action within 6&ndash;12 months</div>
+      <div class="sc-row"><b style="color:#a84b0f">50&ndash;69% High Risk</b> Likely acquisition target, probably receiving interest now</div>
+      <div class="sc-row"><b style="color:#8a5a00">35&ndash;49% Elevated</b> Showing stress &mdash; monitor for deterioration each quarter</div>
+      <div class="sc-row"><b style="color:#1a3f8f">20&ndash;34% Moderate</b> Some risk factors but fundamentally stable</div>
+      <div class="sc-row"><b style="color:#0d6938">Below 20% Low Risk</b> Well-positioned &mdash; could be an acquirer itself</div>
+    </div></div>
+    <div class="icard ic-amber"><div class="ic-body"><b>Important:</b> This model uses publicly available benchmarks and is not financial advice. Internal factors (board dynamics, succession planning, regulatory conversations) are often the deciding factors. Supplement with direct institutional knowledge.</div></div>
   </div>
 
+  <div class="icard ic-blue"><h3>Where to Source the Data</h3><div class="ic-body">
+    <b>FDIC BankFind Suite</b> &mdash; banks.data.fdic.gov &mdash; Individual bank call report data<br>
+    <b>FFIEC CDR</b> &mdash; cdr.ffiec.gov &mdash; Uniform Bank Performance Reports<br>
+    <b>S&amp;P Global Market Intelligence</b> &mdash; Comprehensive financials (subscription)<br>
+    <b>FRED (KC Fed)</b> &mdash; fred.stlouisfed.org &mdash; Industry aggregate benchmarks
+  </div></div>
+
+  <div style="text-align:center;padding:20px 0 0;font-size:11px;color:#b5b9c8;letter-spacing:0.3px">v1.0 &middot; Community Bank Vulnerability Scoring Model &middot; SouthState Correspondent</div>
 </div>
 
 <script>
-var PALETTE = ['#002D72','#1a6bb5','#4a9fd4','#7ab8e8','#003f99','#2d5fa8','#5b9fd6','#a0cce8'];
-
-var channels = [
-  { name:'Paid Search',   roas:4.2, spend:25000, cvr:3.5 },
-  { name:'Paid Social',   roas:2.8, spend:20000, cvr:1.8 },
-  { name:'Programmatic',  roas:1.9, spend:15000, cvr:0.9 },
-  { name:'Email',         roas:6.1, spend:8000,  cvr:5.2 },
-  { name:'SEO / Organic', roas:5.3, spend:10000, cvr:4.1 },
+var METRICS=[
+{id:"roaa",label:"Return on Average Assets (ROAA)",unit:"%",hint:"Below 0.6% = high risk (median for acquired banks in 2025)",calc:function(v){v=parseFloat(v);if(isNaN(v))return null;if(v<=0.4)return{s:10,l:"Critical"};if(v<=0.6)return{s:8,l:"High Risk"};if(v<=0.8)return{s:5,l:"Moderate"};if(v<=1.0)return{s:3,l:"Watch"};return{s:0,l:"Healthy"}}},
+{id:"dep",label:"Core Deposit Growth (Annual %)",unit:"%",hint:"Below 1% = vulnerability. Sellers averaged 0.4% in 2025",calc:function(v){v=parseFloat(v);if(isNaN(v))return null;if(v<=-1)return{s:10,l:"Critical"};if(v<=0.5)return{s:8,l:"High Risk"};if(v<=1.5)return{s:5,l:"Moderate"};if(v<=3)return{s:3,l:"Watch"};return{s:0,l:"Healthy"}}},
+{id:"loan",label:"Loan Growth (Annual %)",unit:"%",hint:"Below 1% = stagnation. Sellers averaged 0.5% in 2025",calc:function(v){v=parseFloat(v);if(isNaN(v))return null;if(v<=-1)return{s:10,l:"Critical"};if(v<=0.5)return{s:8,l:"High Risk"};if(v<=2)return{s:5,l:"Moderate"};if(v<=4)return{s:3,l:"Watch"};return{s:0,l:"Healthy"}}},
+{id:"assets",label:"Total Assets ($M)",unit:"$M",hint:"Under $500M = most vulnerable. Under $1B = at risk",calc:function(v){v=parseFloat(v);if(isNaN(v))return null;if(v<=250)return{s:10,l:"Critical"};if(v<=500)return{s:8,l:"High Risk"};if(v<=1000)return{s:5,l:"Moderate"};if(v<=2000)return{s:3,l:"Watch"};return{s:0,l:"Scale Advantage"}}},
+{id:"cre",label:"CRE Concentration (% of Total Capital)",unit:"%",hint:"Above 300% triggers regulatory scrutiny. Manual entry required.",calc:function(v){v=parseFloat(v);if(isNaN(v))return null;if(v<=100)return{s:0,l:"Low"};if(v<=200)return{s:3,l:"Moderate"};if(v<=300)return{s:5,l:"Elevated"};if(v<=400)return{s:8,l:"High Risk"};return{s:10,l:"Critical"}}},
+{id:"eff",label:"Efficiency Ratio (%)",unit:"%",hint:"Above 80% = spending too much relative to revenue",calc:function(v){v=parseFloat(v);if(isNaN(v))return null;if(v<=55)return{s:0,l:"Excellent"};if(v<=65)return{s:2,l:"Good"};if(v<=75)return{s:5,l:"Moderate"};if(v<=85)return{s:8,l:"High Risk"};return{s:10,l:"Critical"}}},
+{id:"nim",label:"Net Interest Margin (%)",unit:"%",hint:"Below 2.5% = margin compression. Community avg ~3.2%",calc:function(v){v=parseFloat(v);if(isNaN(v))return null;if(v<=2.0)return{s:10,l:"Critical"};if(v<=2.5)return{s:8,l:"High Risk"};if(v<=3.0)return{s:5,l:"Below Avg"};if(v<=3.5)return{s:2,l:"Average"};return{s:0,l:"Strong"}}},
+{id:"texas",label:"Texas Ratio (%)",unit:"%",hint:"NPAs / (tangible equity + reserves). Manual entry required.",calc:function(v){v=parseFloat(v);if(isNaN(v))return null;if(v<=20)return{s:0,l:"Strong"};if(v<=40)return{s:3,l:"Watch"};if(v<=60)return{s:5,l:"Elevated"};if(v<=80)return{s:8,l:"High Risk"};return{s:10,l:"Critical"}}}
 ];
 
-var totalBudget = 100000;
-var revenueGoal = 500000;
-var currentAlgo = 'roi';
-var currentTab  = 'input';
+var QUALS=[
+{id:"ceo",label:"CEO age 60+ with no public succession plan",weight:8},
+{id:"niche",label:"No clear specialty or market niche",weight:6},
+{id:"hot",label:"Located in consolidation hotspot (TX, IL, OH, MN, PA)",weight:4},
+{id:"tech",label:"Minimal digital / mobile banking capabilities",weight:6},
+{id:"unsol",label:"Has received unsolicited acquisition interest",weight:8},
+{id:"activ",label:"Shareholder activist pressure or board turnover",weight:7},
+{id:"single",label:"Single-market concentration (one county / metro)",weight:5},
+{id:"reg",label:"Recent consent order or MOU with regulators",weight:9}
+];
 
-var algoMeta = {
-  roi:      { name:'ROI-Weighted',        desc:"Allocates proportionally to each channel's ROAS." },
-  dr:       { name:'Diminishing Returns', desc:'Applies a saturation curve to prevent over-concentration.' },
-  goal:     { name:'Goal-Based',          desc:'Reverse-engineers spend from your revenue target.' },
-  combined: { name:'Combined',            desc:'Equal blend of all three algorithms.' }
-};
+var MAX_QUAL=0;for(var i=0;i<QUALS.length;i++)MAX_QUAL+=QUALS[i].weight;
+var MAX_TOTAL=METRICS.length*10+MAX_QUAL;
 
-// ── Algorithms ──
-function allocROI(total) {
-  var sum = channels.reduce(function(s,c){return s+c.roas;},0);
-  return channels.map(function(c){var p=c.roas/sum;return{pct:p,budget:p*total};});
+var LEVELS=[
+{min:0.70,color:"#b91c3a",bg:"linear-gradient(135deg,#fdf1f3,#fff8f9)",border:"#f5c6cf",label:"Critical",desc:"Highly likely to be acquired or face regulatory action within 12 months"},
+{min:0.50,color:"#a84b0f",bg:"linear-gradient(135deg,#fef5ed,#fffaf5)",border:"#f5d4b3",label:"High Risk",desc:"Strong acquisition candidate"},
+{min:0.35,color:"#8a5a00",bg:"linear-gradient(135deg,#fefaed,#fffdf5)",border:"#f5e6a3",label:"Elevated",desc:"Showing vulnerability signals"},
+{min:0.20,color:"#1a3f8f",bg:"linear-gradient(135deg,#eaf0fb,#f4f7fd)",border:"#b3c7ec",label:"Moderate",desc:"Fundamentally stable with some risk factors"},
+{min:0,color:"#0d6938",bg:"linear-gradient(135deg,#edf9f2,#f5fcf8)",border:"#a8dfc0",label:"Low Risk",desc:"Well-positioned for independence"}
+];
+
+var metricValues={},qualChecks={},autoFilled={},currentBankName="";
+
+function getRisk(s){var p=s/MAX_TOTAL;for(var i=0;i<LEVELS.length;i++){if(p>=LEVELS[i].min)return{pct:p,lv:LEVELS[i]}}return{pct:p,lv:LEVELS[LEVELS.length-1]}}
+function sColor(s){return s>=8?"#b91c3a":s>=5?"#8a5a00":"#0d6938"}
+function pClass(s){return s>=8?"pill-r":s>=5?"pill-a":"pill-g"}
+
+function buildMetricRows(){
+var c=document.getElementById("metricRows"),h="";
+for(var i=0;i<METRICS.length;i++){var m=METRICS[i],u=m.unit==="$M"?"$M":"%";
+h+='<div class="mrow" id="mrow-'+m.id+'"><div class="mrow-top"><div class="mrow-info"><div class="mrow-name">'+m.label+'<span class="auto-tag" id="atag-'+m.id+'" style="display:none">FDIC</span></div><div class="mrow-hint">'+m.hint+'</div></div><div class="mrow-input-wrap"><input class="mrow-input" type="number" step="0.1" placeholder="\u2014" id="in-'+m.id+'"><span class="mrow-unit">'+u+'</span></div></div><div class="minibar" id="mb-'+m.id+'" style="display:none"><div class="minibar-track"><div class="minibar-fill" id="mf-'+m.id+'"></div></div><span class="minibar-num" id="mn-'+m.id+'"></span></div></div>';}
+c.innerHTML=h;
+for(var j=0;j<METRICS.length;j++){(function(met){document.getElementById("in-"+met.id).addEventListener("input",function(){metricValues[met.id]=this.value;if(autoFilled[met.id]){autoFilled[met.id]=false;document.getElementById("atag-"+met.id).style.display="none";document.getElementById("mrow-"+met.id).className="mrow";}updateScores();});})(METRICS[j]);}
 }
-function allocDR(total) {
-  var sat=0.6;
-  var ts=channels.reduce(function(s,c){return s+c.spend;},0)||1;
-  var ws=channels.map(function(c){return Math.max(0.01,c.roas*(1-sat*(c.spend/ts)));});
-  var sw=ws.reduce(function(a,b){return a+b;},0);
-  return channels.map(function(c,i){var p=ws[i]/sw;return{pct:p,budget:p*total};});
+
+function buildQualRows(){
+var c=document.getElementById("qualRows"),h="";
+for(var i=0;i<QUALS.length;i++){var q=QUALS[i];h+='<div class="qrow" id="qr-'+q.id+'"><div class="qbox" id="qb-'+q.id+'"></div><div class="qlabel">'+q.label+'</div><div class="qpts" id="qp-'+q.id+'">+'+q.weight+'</div></div>';}
+c.innerHTML=h;
+for(var j=0;j<QUALS.length;j++){(function(qual){document.getElementById("qr-"+qual.id).addEventListener("click",function(){qualChecks[qual.id]=!qualChecks[qual.id];var row=document.getElementById("qr-"+qual.id);var box=document.getElementById("qb-"+qual.id);if(qualChecks[qual.id]){row.className="qrow checked";box.textContent="\u2713";}else{row.className="qrow";box.textContent="";}updateScores();});})(QUALS[j]);}
 }
-function allocGoal(total) {
-  var sc=channels.map(function(c){return c.roas*Math.sqrt(c.cvr);});
-  var ss=sc.reduce(function(a,b){return a+b;},0);
-  return channels.map(function(c,i){var p=sc[i]/ss;return{pct:p,budget:p*total};});
+
+function updateScores(){
+var qt=0,fm=0,res=[];
+for(var i=0;i<METRICS.length;i++){var m=METRICS[i],val=metricValues.hasOwnProperty(m.id)?metricValues[m.id]:"";var r=(val!=="")?m.calc(val):null;if(r){qt+=r.s;fm++;}res.push({m:m,r:r,v:val});
+var mb=document.getElementById("mb-"+m.id),mf=document.getElementById("mf-"+m.id),mn=document.getElementById("mn-"+m.id);
+if(r){mb.style.display="flex";var p=(r.s/10)*100;var cl=sColor(r.s);mf.style.width=p+"%";mf.style.background=cl;mn.style.color=cl;mn.textContent=r.s;}else{mb.style.display="none";}}
+var ql=0,fq=0;for(var j=0;j<QUALS.length;j++){if(qualChecks[QUALS[j].id]){ql+=QUALS[j].weight;fq++;}}
+var total=qt+ql,rk=getRisk(total),lv=rk.lv;
+document.getElementById("heroCard").style.background=lv.bg;document.getElementById("heroCard").style.borderColor=lv.border;
+document.getElementById("heroNum").textContent=total;document.getElementById("heroNum").style.color=lv.color;
+document.getElementById("heroLevel").textContent=lv.label;document.getElementById("heroLevel").style.color=lv.color;
+document.getElementById("heroDesc").textContent=lv.desc;
+document.getElementById("heroBar").style.width=(rk.pct*100)+"%";document.getElementById("heroBar").style.background=lv.color;
+var bn=document.getElementById("heroBankName");if(currentBankName){bn.textContent=currentBankName;bn.style.display="block";}else{bn.style.display="none";}
+document.getElementById("rQN").innerHTML=qt+'<span> / '+(METRICS.length*10)+'</span>';
+document.getElementById("rQD").textContent=fm+" of "+METRICS.length+" metrics entered";
+document.getElementById("rQLN").innerHTML=ql+'<span> / '+MAX_QUAL+'</span>';
+document.getElementById("rQLD").textContent=fq+" of "+QUALS.length+" factors flagged";
+var tb="";for(var ti=0;ti<res.length;ti++){var mr=res[ti];var dv=mr.r?(mr.v+(mr.m.unit==="$M"?"":"%")):"\u2014";var bd=mr.r?'<span class="pill '+pClass(mr.r.s)+'">'+mr.r.l+'</span>':"\u2014";var sc=mr.r?'<span style="color:'+sColor(mr.r.s)+'">'+mr.r.s+'/10</span>':"\u2014";var src=autoFilled[mr.m.id]?' <span class="auto-tag">FDIC</span>':"";tb+='<tr><td>'+mr.m.label+src+'</td><td>'+dv+'</td><td>'+bd+'</td><td>'+sc+'</td></tr>';}
+document.getElementById("rTB").innerHTML=tb;
+var fh="",any=false;for(var qi=0;qi<QUALS.length;qi++){if(qualChecks[QUALS[qi].id]){any=true;fh+='<div class="flag-item"><span class="fl">'+QUALS[qi].label+'</span><span class="fs">+'+QUALS[qi].weight+'</span></div>';}}
+if(!any)fh='<p class="none-msg">No factors flagged</p>';document.getElementById("rFL").innerHTML=fh;
 }
-function runAlloc() {
-  if      (currentAlgo==='roi')  return allocROI(totalBudget);
-  else if (currentAlgo==='dr')   return allocDR(totalBudget);
-  else if (currentAlgo==='goal') return allocGoal(totalBudget);
-  var r=allocROI(totalBudget),d=allocDR(totalBudget),g=allocGoal(totalBudget);
-  return channels.map(function(c,i){
-    return{pct:(r[i].pct+d[i].pct+g[i].pct)/3,budget:(r[i].budget+d[i].budget+g[i].budget)/3};
+
+function switchTab(tab){
+document.getElementById("view-input").className=tab==="input"?"visible":"";
+document.getElementById("view-results").className=tab==="results"?"visible":"";
+document.getElementById("tabInput").className=tab==="input"?"tab-btn active":"tab-btn";
+document.getElementById("tabResults").className=tab==="results"?"tab-btn active":"tab-btn";
+}
+
+/* ═══════════════════════════════════════════════════
+   FDIC API VIA CLOUDFLARE WORKER
+   ═══════════════════════════════════════════════════ */
+var searchTimer=null;
+
+var FDIC_BASE="https://banks.data.fdic.gov/api";
+var WORKER_URL="https://fdic-proxy.jameswspence.workers.dev/?url=";
+
+function proxyFetch(path){
+  var fullUrl=FDIC_BASE+path;
+  return fetch(WORKER_URL+encodeURIComponent(fullUrl)).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.json();
   });
 }
 
-function goalLevel(pct) {
-  if(pct>=100) return{color:'#0d6938',bg:'linear-gradient(135deg,#edf9f2,#f5fcf8)',border:'#a8dfc0',label:'Goal Achieved'};
-  if(pct>=80)  return{color:'#002D72',bg:'linear-gradient(135deg,#eaf0fb,#f4f7fd)',border:'#b3c7ec',label:'On Track'};
-  if(pct>=60)  return{color:'#8a5a00',bg:'linear-gradient(135deg,#fefaed,#fffdf5)',border:'#f5e6a3',label:'Behind Target'};
-  return{color:'#b91c3a',bg:'linear-gradient(135deg,#fdf1f3,#fff8f9)',border:'#f5c6cf',label:'Off Track'};
+function setStatus(msg,cls){var el=document.getElementById("lookupStatus");el.textContent=msg;el.className="lookup-status show "+cls;}
+
+document.getElementById("bankSearch").addEventListener("input",function(){
+var q=this.value.trim();if(q.length<3){closeDD();return;}
+clearTimeout(searchTimer);searchTimer=setTimeout(function(){searchBanks(q);},300);
+});
+
+document.addEventListener("click",function(e){if(!e.target.closest(".lookup-field"))closeDD();});
+
+function closeDD(){document.getElementById("bankDD").className="dd";}
+
+function searchBanks(query){
+var url="/institutions?search=NAME:"+encodeURIComponent(query)+"&fields=CERT,NAME,CITY,STALP,ASSET,ACTIVE&filters=ACTIVE:1&sort_by=ASSET&sort_order=DESC&limit=10";
+proxyFetch(url).then(function(data){
+var dd=document.getElementById("bankDD");
+if(!data.data||data.data.length===0){dd.innerHTML='<div class="dd-none">No matching banks found</div>';dd.className="dd open";return;}
+var h="";for(var i=0;i<data.data.length;i++){var d=data.data[i].data;var a=d.ASSET?"$"+(d.ASSET/1000).toFixed(0)+"M":"";
+h+='<div class="dd-item" onclick="selectBank('+d.CERT+',\''+d.NAME.replace(/'/g,"\\'")+'\')">';
+h+='<div class="dd-name">'+d.NAME+'</div>';
+h+='<div class="dd-meta">CERT #'+d.CERT+' &middot; '+(d.CITY||"")+', '+(d.STALP||"")+(a?" &middot; "+a+" assets":"")+'</div></div>';}
+dd.innerHTML=h;dd.className="dd open";
+}).catch(function(){var dd=document.getElementById("bankDD");dd.innerHTML='<div class="dd-none">Connection error \u2014 try entering a CERT # directly</div>';dd.className="dd open";});
 }
 
-function fmt(n){return '$'+Math.round(n).toLocaleString();}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function selectBank(cert,name){closeDD();document.getElementById("bankSearch").value=name;document.getElementById("certInput").value=cert;fetchBankData(cert);}
 
-// ── Tab switching ──
-function doTab(t) {
-  currentTab = t;
-  document.getElementById('panel-input').style.display   = t==='input'   ? '' : 'none';
-  document.getElementById('panel-results').style.display = t==='results' ? '' : 'none';
-  document.getElementById('tab-input').classList.toggle('active',   t==='input');
-  document.getElementById('tab-results').classList.toggle('active', t==='results');
-  if (t==='results') {
-    renderAlgoPicker();
-    runAndRenderResults();
-  }
+function doLookup(){var cert=document.getElementById("certInput").value.trim();if(!cert){setStatus("Please enter a CERT number or search for a bank by name first.","error");return;}fetchBankData(parseInt(cert));}
+
+function fetchBankData(cert){
+var btn=document.getElementById("lookupBtn");btn.disabled=true;btn.textContent="Loading\u2026";
+setStatus("Fetching call report data from FDIC\u2026","loading");
+var fields="CERT,NAME,REPDTE,ASSET,DEP,LNLSNET,ROA,NIMY,EEFFR,NCLNLSR,EQ,CITY,STALP";
+var url="/financials?filters=CERT:"+cert+"&fields="+fields+"&sort_by=REPDTE&sort_order=DESC&limit=5";
+
+proxyFetch(url).then(function(data){
+btn.disabled=false;btn.textContent="Look Up";
+if(!data.data||data.data.length===0){setStatus("No financial data found for CERT #"+cert+". Check the number and try again.","error");return;}
+
+var latest=data.data[0].data;
+var repDate=latest.REPDTE||"";
+var fd="";if(repDate.length===8)fd=repDate.substring(4,6)+"/"+repDate.substring(6,8)+"/"+repDate.substring(0,4);
+currentBankName=(latest.NAME||"Bank")+" (CERT #"+cert+")"+(fd?" \u2014 Data as of "+fd:"");
+
+var priorQ=null;
+if(repDate.length===8){var ty=parseInt(repDate.substring(0,4))-1;var td=ty+repDate.substring(4);
+for(var i=1;i<data.data.length;i++){if(data.data[i].data.REPDTE===td){priorQ=data.data[i].data;break;}}}
+
+var filled=[],manual=[];
+if(latest.ROA!=null){setField("roaa",r2(latest.ROA));filled.push("ROAA");}
+if(latest.ASSET!=null){setField("assets",r2(latest.ASSET/1000));filled.push("Total Assets");}
+if(latest.NIMY!=null){setField("nim",r2(latest.NIMY));filled.push("NIM");}
+if(latest.EEFFR!=null){setField("eff",r2(latest.EEFFR));filled.push("Efficiency Ratio");}
+
+if(priorQ&&latest.DEP!=null&&priorQ.DEP!=null&&priorQ.DEP>0){setField("dep",r2(((latest.DEP-priorQ.DEP)/priorQ.DEP)*100));filled.push("Deposit Growth");}
+else{manual.push("Deposit Growth (no YoY data)");}
+
+if(priorQ&&latest.LNLSNET!=null&&priorQ.LNLSNET!=null&&priorQ.LNLSNET>0){setField("loan",r2(((latest.LNLSNET-priorQ.LNLSNET)/priorQ.LNLSNET)*100));filled.push("Loan Growth");}
+else{manual.push("Loan Growth (no YoY data)");}
+
+manual.push("CRE Concentration");manual.push("Texas Ratio");
+
+var hs=["TX","IL","OH","MN","PA"];
+if(latest.STALP&&hs.indexOf(latest.STALP)!==-1&&!qualChecks["hot"]){qualChecks["hot"]=true;document.getElementById("qr-hot").className="qrow checked";document.getElementById("qb-hot").textContent="\u2713";}
+
+updateScores();
+var msg="Auto-filled "+filled.length+" of 8 metrics: "+filled.join(", ")+".";
+if(manual.length>0)msg+=" Manual entry needed: "+manual.join(", ")+".";
+setStatus(msg,filled.length>=4?"success":"partial");
+
+}).catch(function(){
+btn.disabled=false;btn.textContent="Look Up";
+setStatus("Could not connect to FDIC API. If this persists, deploy the Cloudflare Worker proxy (see instructions) and set PROXY_URL in the code. You can also enter data manually.","error");
+});
 }
 
-// ── Render algo picker (results tab only) ──
-function renderAlgoPicker() {
-  var keys=['roi','dr','goal','combined'];
-  var h='';
-  for(var i=0;i<keys.length;i++){
-    var k=keys[i], m=algoMeta[k];
-    h+='<div class="algo-opt'+(currentAlgo===k?' active':'')+'" onclick="selectAlgo(\''+k+'\')">'+
-       '<span class="algo-opt-name">'+m.name+'</span>'+
-       '<span class="algo-opt-desc">'+m.desc+'</span>'+
-       '</div>';
-  }
-  document.getElementById('algo-group').innerHTML = h;
-}
+function setField(id,val){metricValues[id]=String(val);document.getElementById("in-"+id).value=val;autoFilled[id]=true;document.getElementById("atag-"+id).style.display="inline-block";document.getElementById("mrow-"+id).className="mrow auto-filled";}
+function r2(v){return Math.round(v*100)/100;}
 
-function selectAlgo(k) {
-  currentAlgo = k;
-  renderAlgoPicker();
-  runAndRenderResults();
-}
-
-// ── Render channel list (called on add/remove only) ──
-function renderChannelList() {
-  var allocs = runAlloc();
-  var h = '';
-  for(var i=0;i<channels.length;i++){
-    var ch=channels[i], color=PALETTE[i%PALETTE.length];
-    var barPct = totalBudget>0 ? Math.round((allocs[i].budget/totalBudget)*100) : 0;
-    h+='<div class="mrow" id="ch-row-'+i+'">'+
-       // Desktop: single grid row
-       '<div class="mrow-top mrow-desktop">'+
-         '<div class="ch-name"><div class="ch-dot" style="background:'+color+'"></div>'+
-         '<span class="ch-name-text">'+esc(ch.name)+'</span></div>'+
-         '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.roas+'" '+
-           'oninput="channels['+i+'].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
-         '<input class="mrow-input" type="number" step="1000" min="0" value="'+ch.spend+'" '+
-           'oninput="channels['+i+'].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
-         '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.cvr+'" '+
-           'oninput="channels['+i+'].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()">'+
-         '<button class="remove-btn" onclick="doRemove('+i+')" title="Remove">×</button>'+
-       '</div>'+
-       // Mobile: stacked layout with labels
-       '<div class="mrow-mobile">'+
-         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
-           '<div class="ch-name"><div class="ch-dot" style="background:'+color+'"></div>'+
-           '<span class="ch-name-text">'+esc(ch.name)+'</span></div>'+
-           '<button class="remove-btn" onclick="doRemove('+i+')" title="Remove">×</button>'+
-         '</div>'+
-         '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'+
-           '<div><div class="mrow-input-lbl">ROAS</div>'+
-           '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.roas+'" '+
-             'oninput="channels['+i+'].roas=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
-           '<div><div class="mrow-input-lbl">Spend ($)</div>'+
-           '<input class="mrow-input" type="number" step="1000" min="0" value="'+ch.spend+'" '+
-             'oninput="channels['+i+'].spend=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
-           '<div><div class="mrow-input-lbl">CVR (%)</div>'+
-           '<input class="mrow-input" type="number" step="0.1" min="0" value="'+ch.cvr+'" '+
-             'oninput="channels['+i+'].cvr=parseFloat(this.value)||0;refreshMinibars();refreshResults()"></div>'+
-         '</div>'+
-       '</div>'+
-       '<div class="minibar" id="minibar-'+i+'">'+
-         '<div class="minibar-track"><div class="minibar-fill" id="minibar-fill-'+i+'" style="width:'+barPct+'%;background:'+color+'"></div></div>'+
-         '<span class="minibar-num" id="minibar-num-'+i+'" style="color:'+color+'">'+barPct+'%</span>'+
-       '</div>'+
-       '</div>';
-  }
-  document.getElementById('channel-list').innerHTML = h;
-}
-
-// ── Update only the minibar fills — no DOM rebuild ──
-function refreshMinibars() {
-  var allocs = runAlloc();
-  for(var i=0;i<channels.length;i++){
-    var barPct = totalBudget>0 ? Math.round((allocs[i].budget/totalBudget)*100) : 0;
-    var fill = document.getElementById('minibar-fill-'+i);
-    var num  = document.getElementById('minibar-num-'+i);
-    if(fill) fill.style.width = barPct+'%';
-    if(num)  num.textContent  = barPct+'%';
-  }
-}
-
-// ── Render full results output ──
-function runAndRenderResults() {
-  var allocs = runAlloc();
-  var projRev=0;
-  for(var i=0;i<channels.length;i++) projRev+=allocs[i].budget*channels[i].roas;
-  var blendedROAS = totalBudget>0 ? projRev/totalBudget : 0;
-  var goalPct     = revenueGoal>0 ? Math.round((projRev/revenueGoal)*100) : 0;
-  var gl = goalLevel(goalPct);
-  var topIdx=0;
-  for(var ti=1;ti<allocs.length;ti++){if(allocs[ti].budget>allocs[topIdx].budget)topIdx=ti;}
-
-  var h='';
-
-  // Hero
-  h+='<div class="hero" style="background:'+gl.bg+';border-color:'+gl.border+'">';
-  h+='<div class="hero-top">';
-  h+='<div><span class="hero-num" style="color:'+gl.color+'">'+goalPct+'%</span></div>';
-  h+='<div class="hero-right"><div class="hero-level" style="color:'+gl.color+'">'+gl.label+'</div>';
-  h+='<div class="hero-desc">Projected revenue covers '+goalPct+'% of the '+fmt(revenueGoal)+' goal.</div></div>';
-  h+='</div>';
-  h+='<div class="bar-track"><div class="bar-fill" style="width:'+Math.min(goalPct,100)+'%;background:'+gl.color+'"></div></div>';
-  h+='<div class="bar-labels"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%+</span></div>';
-  h+='</div>';
-
-  // Stats
-  h+='<div class="stats">';
-  h+='<div class="stat-card"><div class="stat-lbl">Projected Revenue</div><div class="stat-num">'+fmt(projRev)+'</div><div class="stat-detail">Across '+channels.length+' channels</div></div>';
-  h+='<div class="stat-card"><div class="stat-lbl">Blended ROAS</div><div class="stat-num">'+blendedROAS.toFixed(2)+'<span>x</span></div><div class="stat-detail">Return per $ spent</div></div>';
-  h+='<div class="stat-card"><div class="stat-lbl">Total Budget</div><div class="stat-num">'+fmt(totalBudget)+'</div><div class="stat-detail">Across '+channels.length+' channels</div></div>';
-  h+='</div>';
-
-  // Table
-  h+='<div class="sec"><div class="sec-title" style="margin-bottom:12px">Channel Breakdown</div>';
-
-  // Desktop table
-  h+='<div class="tbl-wrap breakdown-desktop"><table class="tbl"><thead><tr>';
-  h+='<th>Channel</th><th>Allocation</th><th>Budget</th><th>Est. Return</th><th>ROAS</th>';
-  h+='</tr></thead><tbody>';
-  for(var ri=0;ri<channels.length;ri++){
-    var rch=channels[ri], ra=allocs[ri];
-    var rPct=(ra.pct*100).toFixed(1);
-    var estRet=ra.budget*rch.roas;
-    var rColor=PALETTE[ri%PALETTE.length];
-    var pillCls=ra.pct>0.25?'pill-top':ra.pct>0.15?'pill-mid':'pill-low';
-    h+='<tr>';
-    h+='<td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+rColor+';margin-right:8px;vertical-align:middle"></span>'+esc(rch.name)+'</td>';
-    h+='<td><span class="pill '+pillCls+'">'+rPct+'%</span></td>';
-    h+='<td>'+fmt(ra.budget)+'</td>';
-    h+='<td>'+fmt(estRet)+'</td>';
-    h+='<td>'+rch.roas.toFixed(1)+'x</td>';
-    h+='</tr>';
-  }
-  h+='</tbody></table></div>';
-
-  // Mobile cards
-  h+='<div class="breakdown-mobile">';
-  for(var mi=0;mi<channels.length;mi++){
-    var mch=channels[mi], ma=allocs[mi];
-    var mPct=(ma.pct*100).toFixed(1);
-    var mRet=ma.budget*mch.roas;
-    var mColor=PALETTE[mi%PALETTE.length];
-    var mPillCls=ma.pct>0.25?'pill-top':ma.pct>0.15?'pill-mid':'pill-low';
-    h+='<div class="breakdown-card">'+
-       '<div class="breakdown-card-top">'+
-         '<div class="ch-name"><div class="ch-dot" style="background:'+mColor+'"></div>'+
-         '<span class="ch-name-text">'+esc(mch.name)+'</span></div>'+
-         '<span class="pill '+mPillCls+'">'+mPct+'%</span>'+
-       '</div>'+
-       '<div class="minibar" style="margin:8px 0 10px">'+
-         '<div class="minibar-track"><div class="minibar-fill" style="width:'+mPct+'%;background:'+mColor+'"></div></div>'+
-       '</div>'+
-       '<div class="breakdown-stats">'+
-         '<div class="breakdown-stat"><div class="mrow-input-lbl">Budget</div><div class="breakdown-val">'+fmt(ma.budget)+'</div></div>'+
-         '<div class="breakdown-stat"><div class="mrow-input-lbl">Est. Return</div><div class="breakdown-val">'+fmt(mRet)+'</div></div>'+
-         '<div class="breakdown-stat"><div class="mrow-input-lbl">ROAS</div><div class="breakdown-val">'+mch.roas.toFixed(1)+'x</div></div>'+
-       '</div>'+
-       '</div>';
-  }
-  h+='</div></div>';
-
-  // Insight
-  var goalLine = goalPct>=100
-    ? 'Budget is sufficient to achieve the '+fmt(revenueGoal)+' revenue goal.'
-    : 'Budget falls <strong>'+(100-goalPct)+'%</strong> short — consider increasing total budget or improving ROAS on underperforming channels.';
-  h+='<div class="insight-box"><strong>'+esc(channels[topIdx].name)+'</strong> receives the largest allocation at ';
-  h+='<strong>'+fmt(allocs[topIdx].budget)+'</strong> ('+( allocs[topIdx].pct*100).toFixed(1)+'%). '+goalLine+'</div>';
-
-  // Info cards
-  h+='<div class="icard ic-white"><h3>How Algorithms Compare</h3><div class="ic-body">';
-  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">ROI-Weighted</b> Rewards best performers — use when you have high-confidence ROAS data</div>';
-  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">Diminishing Returns</b> Prevents over-indexing — use for mature campaigns near saturation</div>';
-  h+='<div style="margin-bottom:6px"><b style="display:inline-block;min-width:170px;color:#002D72">Goal-Based</b> Works backward from revenue — use when hitting a specific target is required</div>';
-  h+='<div><b style="display:inline-block;min-width:170px;color:#002D72">Combined</b> Balanced blend — good default when uncertain which model to trust</div>';
-  h+='</div></div>';
-
-
-
-  document.getElementById('results-output').innerHTML = h;
-}
-
-// ── refreshResults: only update if results tab is visible ──
-function refreshResults() {
-  if(currentTab==='results') runAndRenderResults();
-}
-
-// ── Add / Remove ──
-function doAdd() {
-  var names=['YouTube','CTV','Direct Mail','Affiliate','Influencer','Podcast','Display','OOH'];
-  var used=channels.map(function(c){return c.name;});
-  var name=names.filter(function(n){return used.indexOf(n)<0;})[0]||'Channel '+(channels.length+1);
-  channels.push({name:name,roas:2.0,spend:10000,cvr:1.5});
-  renderChannelList();
-}
-function doRemove(i) {
-  if(channels.length>2){channels.splice(i,1);renderChannelList();}
-}
-
-// ── Init ──
-renderChannelList();
-renderAlgoPicker();
+buildMetricRows();buildQualRows();updateScores();
 </script>
-
-<script>
-  const PARENT_ORIGIN = 'https://southstatecorrespondent.com';
-
-  function reportHeight() {
-    const height = document.documentElement.scrollHeight;
-    window.parent.postMessage(
-      { type: 'RESIZE', height: height },
-      PARENT_ORIGIN
-    );
-  }
-
-  window.addEventListener('load', reportHeight);
-  new ResizeObserver(reportHeight).observe(document.body);
-</script>
-  
 </body>
 </html>
-
-
-
