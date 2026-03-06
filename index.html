@@ -791,6 +791,22 @@ renderChannelList();
 renderAlgoPicker();
 </script>
 
+<script>
+  const PARENT_ORIGIN = 'https://southstatecorrespondent.com';
+
+  function reportHeight() {
+    const height = document.documentElement.scrollHeight;
+    window.parent.postMessage(
+      { type: 'RESIZE', height: height },
+      PARENT_ORIGIN
+    );
+  }
+
+  window.addEventListener('load', reportHeight);
+  new ResizeObserver(reportHeight).observe(document.body);
+</script>
+  
 </body>
 </html>
+
 
